@@ -1,5 +1,5 @@
-**Zustand:** ABGENOMMEN mit zwei ausgewiesenen Abweichungen vom Prompt
-**Worum es geht:** Zweite Variante der Bienenstock-Simulation, Lösung zu Prompt #24 (`PROMPT.md`). Analyse und Messwerte: `ANALYSE.md`.
-**Letzter Stand (17.10.2026):** `index.html` Revision 4 (sha256 `B7075A09…`). Abnahme PASS, unabhängige Gegenproben S1/S2 bestanden, 20/20 Standard-Seeds überleben. Offen: S5 misst wegen der Start-Zeitlupe nur 2 Ticks (Prompt verlangt > 5); Kollaps-Bedingung „keine Nahrung“ statt „kein Honig“; Stress-Test 2/20 überleben.
-**Danach:** Tempo-Buttons getrennt (¼× · 1× · 2×), nur UI, Modellkennung unverändert `ece34155`; veröffentlicht auf GitHub + Pages.
-**Nächster Schritt:** Entscheiden, ob die beiden Abweichungen bleiben (dann im Status-Bereich der App ausweisen) oder an den Prompt angepasst werden.
+**Zustand:** VERSION 3 FERTIG — Symbiose aus V1 und V2, Abnahme nach Prompt #24 bestanden
+**Worum es geht:** „Wachs & Wandel“, Bienenstock-Simulation als eine HTML-Datei. Aufgabe: `PROMPT.md` (#24). Messwerte und Vergleich: `ANALYSE.md`.
+**Letzter Stand (17.10.2026):** V3 gebaut aus `src/` per `build.ps1`. Modellkennung `cb3cb106`, eingebaute Abnahme PASS (3,3 s): 20/20 überleben, 0 Invariantenfehler, Stress 11 ü / 9 K, Ressourcen monoton, Lesbarkeit 1.130 Zellen. Kollaps und S5 wörtlich nach Prompt. V2 Rev. 4 gesichert als Tag `v2-rev4` und `archive/rev4.html`.
+**Offen / bewusst:** Abweichungen sind in der App unter „Ausbaustufen“ ausgewiesen (Königin implizit, Wassertank, Amme versorgt Nachbarlarven, Stress-Abnahme mit gestaffeltem Start). Doppelklick-Start in Brave nicht getestet.
+**Nächster Schritt:** Autor sichtet V3 online; Änderungen nur in `src/`, danach `build.ps1`, bei Modelländerung Abnahme neu messen (`src/acceptance.json`).

@@ -1,4 +1,65 @@
-# Analyse und Abnahme — Lösung zu Prompt #24
+# Analyse und Abnahme — Lösungen zu Prompt #24
+
+## Version 3 (17.10.2026) — Symbiose aus V1 und V2
+
+Neu gebaut aus lesbaren Quellmodulen (`src/`). Das Modell folgt den Regeln von V2 Rev. 4, mit Indexstrukturen statt
+Vollsuchen, Wiese und Darstellung aus V1. Alle Werte sind gemessen (Chrome headless, `file://`).
+
+### Eingebaute Abnahme (Modellkennung `cb3cb106`, Rechenzeit 3,3 s)
+
+| Kriterium aus #24 | Ergebnis |
+|---|---|
+| Lebensfähigkeit: ≥ 18/20 Seeds über 150 Tage, Ø ±30 % um das Ziel | 20/20, Ø 141,7 (Ziel 150), max 185; 0 Invariantenfehler |
+| Ressourcen 0 % → Kollaps | 20/20 kollabiert |
+| Wetterstabilität 10 % → Mehrheit kollabiert | 20/20 kollabiert |
+| Stress-Test unterscheidet | 11 überleben, 9 kollabieren (Start gestaffelt an Tag 5/10/15/20/25, siehe unten) |
+| Fehlerinjektion S1, S2, S3, S4, S7, S8 (zweifach) | 7/7 genau erkannt, nach Reset sauber |
+| Reproduzierbarkeit | gleicher Seed → identischer Verlauf |
+| Lesbarkeit ≥ 1.000 belegte Zellen, echter Lauf | 1.130 (Ziel 400, Ressourcen 100 %) |
+| Ressourcenantwort | 20 % → 0 · 40 % → 5.805 · 60 % → 86.525 · 80 % → 145.989 · 100 % → 164.781 (monoton) |
+| Eingriffstests | ohne Ammen 16 Pflegeverluste (normal 0); ohne Fächeln 0 Honig (normal 77); 43 °C → 41 Brutverluste |
+| Quellenbilanz | gesammelt = Abnahme an Blüten + Tränke + Startbestand, exakt |
+| S5 Takt (Browser) | erste sichtbare Sekunde bei 1×: 10 Ticks, 61 Frames |
+| Pause | Canvas steht pixelgenau still (1 Bild über 1,2 s) |
+| Layout | 16/16 Anzeigen größenstabil bei 1600 und 390 px, kein horizontaler Überlauf |
+
+### Vergleich V1 · V2 · V3 (identische Messreihe)
+
+| | V1 | V2 Rev. 4 | V3 |
+|---|---|---|---|
+| ms/Tick, Ziel 150 | 0,076 | 1,033 | **0,061** |
+| ms/Tick, Ziel 400 | **0,084** (erreicht ~157 Bienen) | 2,572 | 0,105 (erreicht ~320 Bienen) |
+| Standard 20 Seeds | 20/20, Ø 163 | 20/20, Ø 147 | 20/20, Ø 142 |
+| Ressourcen 20/40/70/100 % (3 Seeds) | 3 · 3 · 3 · 3 | 0 · 3 · 3 · 3 | 0 · 3 · 3 · 3 |
+| Stress, Start Tag 5–25 | 4 ü / 16 K | 5 ü / 15 K | 11 ü / 9 K |
+| 12 Zufallsläufe | 0 Exceptions, 0 Fehler | 0 / 0 | 0 / 0 |
+| Kollaps / S5 nach Wortlaut #24 | ja / ja | nein / nein | **ja / ja** |
+
+V3 ist nicht in jeder Zeile vorn: Bei Ziel 400 rechnet V1 pro Tick schneller, simuliert aber nur rund halb so viele
+Bienen, weil seine Wiese das Volk begrenzt. Das großzügigere Überleben von V1 bei 20 % Ressourcen ist eine Modellwahl.
+
+### Während des Baus gefundene Fehler (alle durch Invarianten oder Messung, behoben)
+
+- S8: Bei der Übergabe ging die Last, aber nicht die Reservierung auf die Stockbiene über.
+- S4 (zweimal): Eine Abholerin behielt ein Ziel auf eine verstorbene Sammlerin.
+- S2-Fehlalarm: Die Honig-Wache zählte verfrühte Versuche als Verstoß.
+- S3-Fehlalarm: Die Prüfung lief vor dem Auffrischen der Anzeige.
+- Baubedarf wurde nie erkannt („keine freie Zelle“ trat praktisch nie ein) → Sammlerinnen warteten 45 % der Zeit.
+- Startverhungern bei 40 %: Flugkosten aus dem Stock während langer Suche → Sammlerinnen trinken an der Blüte.
+- Pause: Kamera driftete subpixelweise → in der Pause eingefroren.
+
+### Bewusste Abweichungen (in der App unter „Ausbaustufen“ ausgewiesen)
+
+- Königin implizit, Wasser in einem Tank statt in Zellen.
+- Eine Amme versorgt bei ihrem Besuch auch die Larven der Nachbarzellen.
+- Krankheitswirkung stärker als in V2 (Bienen Druck²·0,008, Brut Druck²·0,003 je Tick); bei 15 % Druck vernachlässigbar.
+- Stress-Abnahme mit gestaffeltem Start: Bei einheitlichem Start an Tag 20 überleben alle 20 Völker, weil die effizientere Ernte
+  ähnliche Reserven aufbaut; bei Start an Tag 5–15 kollabiert die Mehrheit. Der Test unterscheidet nach dem Zustand des Volkes.
+- Erste sichtbare Sekunde bei 1× (Taktprüfung S5 wörtlich), danach Zeitlupe.
+
+---
+
+# Analyse V2 (Fremdlösung, Revisionen 2–4)
 
 Geprüft wurde `index.html` in drei Ständen, jeweils in Headless-Chrome über die eingebaute
 Testschnittstelle `window.BeeLab` und mit **eigenen** Zählern. Die eingebaute Abnahme der Seite allein

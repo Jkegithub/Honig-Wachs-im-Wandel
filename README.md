@@ -1,53 +1,68 @@
 # Honig & Wachs im Wandel
 
-Interaktive Bienenstock-Simulation als **eine einzige HTML-Datei**. HTML, CSS und JavaScript sind inline,
-es gibt keine Frameworks und keine externen Dateien. Die Oberfläche der Simulation trägt den Titel „Wachs & Wandel“.
+Interaktive Bienenstock-Simulation **„Wachs & Wandel“** als **eine einzige HTML-Datei**. HTML, CSS und JavaScript
+sind inline, es gibt keine Frameworks und keine externen Dateien.
 
-![Simulation an Tag 61](docs/screenshot.png)
+**Version 3** ist eine Symbiose aus zwei Vorgängern:
+- **V1** [`bienenstock-simulation`](https://github.com/Jkegithub/bienenstock-simulation) bringt die Darstellung mit
+  (Larven als wachsendes „C“, Wiese mit Blütenfeldern, Wetter, kontrastreiche Schrift) und den lesbaren, modularen Quelltext.
+- **V2** „Wachs & Wandel“ Rev. 4 bringt Namen und Layout, das Modell als Klasse, die Testschnittstelle, 9 Invarianten
+  und die eingebaute Abnahme.
+
+![Wachs & Wandel, Version 3, an Tag 53](docs/screenshot.png)
 
 ## Starten
 
 **Im Browser:** <https://jkegithub.github.io/Honig-Wachs-im-Wandel/>
 
-**Offline:** [`index.html`](index.html) herunterladen (auf GitHub „Download raw file“) und per Doppelklick
-im Browser öffnen. Es wird kein Server gebraucht.
-Tempo über drei getrennte Buttons, von denen genau einer aktiv ist: **¼× Zeitlupe** (Start),
-**1× Normal** (1 Sim-Tag pro Sekunde), **2× Tempo**.
+**Offline:** [`index.html`](index.html) herunterladen (auf GitHub „Download raw file“) und per Doppelklick öffnen.
+Es wird kein Server gebraucht.
 
-**Seed:** Jeder Lauf hat einen Seed (Startwert des Zufallsgenerators, beim Laden immer `1729`). Er legt alle
-Zufallsereignisse fest, also Alter und Lebensdauer der Bienen, Wetterphasen und Krankheitsfälle. Gleicher Seed
-und gleiche Regler ergeben einen identischen Verlauf. Einen anderen Seed eintragen und auf **Start** klicken;
-**↻ Neuer Seed** würfelt einen zufälligen.
+- **Tempo:** drei Buttons **¼× Zeitlupe · 1× Normal · 2× Tempo**, von denen genau einer aktiv ist. Die erste Sekunde läuft
+  bei 1× (Taktprüfung S5), danach schaltet die Simulation in die Zeitlupe.
+- **Seed:** Jeder Lauf hat einen Seed (beim Laden `1729`). Er legt alle Zufallsereignisse fest: Alter und Lebensdauer der
+  Bienen, Wetter und Krankheitsfälle. Gleicher Seed und gleiche Regler ergeben einen identischen Verlauf. Einen anderen
+  Seed eintragen und auf **Start** klicken; **↻ Neuer Seed** würfelt einen zufälligen.
+- **Zelle anklicken:** Der Inspektor zeigt Zustand, Füllgrad, Wassergehalt, Alter, Temperatur und die zuständige Biene.
 
-## Was diese Variante auszeichnet
+## Was Version 3 auszeichnet
 
-- **Reproduzierbar:** Jeder Lauf hat einen Seed, und gleicher Seed bedeutet gleicher Verlauf.
-- **Prüfbar:** `window.BeeLab` erlaubt Vorspulen ohne Rendering, Fehlerinjektion und eine vollständige Abnahme über 20 Seeds
-  (Button „Abnahme · 20 Seeds prüfen“).
-- **Selbstprüfung mit 9 Invarianten**, darunter Ressourcenbilanz mit Toleranz 0, Honigherkunft,
-  Stillstandsfreiheit, Lagerreservierungen und Populationserhaltung.
-- **Arbeit vor Ort:** Ammen besuchen Larven, Arbeiterinnen fächeln und bauen an der Zelle, und die Temperatur
-  wirkt auf die Entwicklung der Brut.
-- **Kollapsbericht** mit Ursachenkette, 30-Tage-Vorgeschichte und Slider-Stellungen.
-
-## Aufgabe und Abnahme
-
-| Datei | Inhalt |
+| | Messung (Chrome, gleiche Messreihe für alle drei Varianten) |
 |---|---|
-| [`PROMPT.md`](PROMPT.md) | Die Aufgabenbeschreibung: Prompt #24 „Bienenstock-Simulation (Version 2)“, unverändert, mit sha256 |
-| [`ANALYSE.md`](ANALYSE.md) | Unabhängige Messung und Abnahme dieser Lösung, mit Verlauf über drei Revisionen und offenen Punkten |
-| [`STATUS.md`](STATUS.md) | Aktueller Stand |
+| Rechenzeit | **0,06 ms je Tick** bei Ziel 150, V2: 1,03 ms. Die Abnahme über 20 Seeds dauert **3,3 s**, V2: 66 s |
+| Lebensfähigkeit | 20/20 Seeds überleben 150 Tage, Ø 142 Bienen, 0 Invariantenfehler |
+| Stress-Test | unterscheidet: 11 überleben, 9 kollabieren (Start an Tag 5–25) |
+| Ressourcen-Slider | wirkt monoton über 0–100 % |
+| Prompt-Treue | Kollaps und Taktprüfung **wörtlich** nach Prompt #24, in V2 waren das zwei Abweichungen |
 
-## Verwandtes Projekt
+Details, Vergleichstabelle V1/V2/V3 und alle Messwerte: [`ANALYSE.md`](ANALYSE.md).
 
-[`bienenstock-simulation`](https://github.com/Jkegithub/bienenstock-simulation) ist die erste Variante,
-gebaut nach Prompt #1. Aus ihren Befunden entstand Prompt #24, auf dem diese zweite Variante beruht.
+## Aufbau des Quelltexts
+
+`index.html` wird gebaut, nicht direkt bearbeitet:
+
+```powershell
+./build.ps1
+```
+
+| Pfad | Inhalt |
+|---|---|
+| `src/template.html` | Seite, CSS, Modulplan |
+| `src/js/10_core.js` | Konstanten, Zufall, Gitter, Zonen, **Design decisions und Mengengerüst** |
+| `src/js/20_colony.js` … `60_check.js` | Modell (Klasse `Colony`): Vorräte, Brut, Bienen, Umwelt, Prüfung und Abnahme |
+| `src/js/70_render.js`, `80_ui.js` | Darstellung (ein Canvas) und Bedienung |
+| `src/acceptance.json` | gespeicherte Abnahme, gebunden an die Modellkennung (jede Modelländerung macht sie ungültig) |
+| `fonts/` | eingebettete Schriften mit Lizenztexten |
+| `archive/rev4.html` | V2 Revision 4 zum Vergleich (auch als Git-Tag `v2-rev4`) |
+
+Testschnittstelle im Browser: `window.BeeLab` mit `create`, `advance`, `selfCheck`, `inject`, `acceptance`, `fingerprint`.
+
+## Aufgabe
+
+[`PROMPT.md`](PROMPT.md) enthält Prompt #24 „Bienenstock-Simulation (Version 2)“ unverändert, mit sha256.
 
 ## Lizenz
 
-Code: [MIT](LICENSE). Schrift: SIL Open Font License 1.1 (siehe unten).
-
-## Schrift
-
-**Fraunces**, © 2018 The Fraunces Project Authors, SIL Open Font License 1.1. Eingebettet als
-WOFF2-Teilmenge; der Lizenztext steht am Ende von `index.html`.
+Code: [MIT](LICENSE).
+Schriften: **Fraunces** © 2020 The Fraunces Project Authors und **Source Code Pro** © 2010, 2012 Adobe Systems Incorporated
+(Reserved Font Name „Source“), beide SIL Open Font License 1.1. Die Lizenztexte liegen in [`fonts/`](fonts/).

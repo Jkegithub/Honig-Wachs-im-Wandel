@@ -1,0 +1,215 @@
+<!doctype html>
+<!--
+==========================================================================================
+  WACHS & WANDEL — Bienenstock-Simulation, Version 3 (Symbiose aus V1 und V2)
+  Eine Datei: HTML + CSS + JS inline, keine externen Dateien, läuft per Doppelklick aus file://
+==========================================================================================
+  MODULPLAN (9 Module; jede Funktion trägt ihren Modulnamen als Kommentar)
+  core          Konstanten, seedgebundener Zufall, Hilfsfunktionen. Besitzt: CFG, Random.
+  hexGrid       Spiralgitter mit Nachbarn, Zonen (Brutnest, Pollenkranz, Lager), Anbau,
+                einzige Zustandsänderung setState() mit Honig-Wache. Besitzt: Zellen, Indizes.
+  resourcePool  Ledger je Ressource, Vorratssummen, Entnahme, Einlagerung, Reservierungen,
+                Wassertank, Fächeln. Besitzt: ledger, tot, water, reserved.
+  broodCycle    Implizite Königin, Ei/Larve/Puppe, Ammenpflicht, Temperatur, Schlupf.
+  beeAgents     Bienen: Rolle nach Altersrang, Aufträge, Pfade, Flug über die Wiese,
+                Übergabe, Energiehaushalt, Tod mit Verlustbeleg. Besitzt: bees, handoff.
+  environment   Wetterphasen, Blütenfelder, Tränke, Temperaturen, Parameter, Stress-Test.
+  diagnostics   Tick-Ablauf, Verlauf, Kollapsbericht, Invarianten S1–S9, Fehlerinjektion,
+                Abnahme, Modellkennung, Testschnittstelle window.BeeLab.
+  renderer      Ein Canvas 2D: Wabe (Offscreen-Cache), Wiese, Wetter, Bienen, Layer.
+  ui            Panels, Steuerung, Inspektor, Berichte, Tick-Schleife.
+
+  Build: index.html entsteht aus src/template.html + src/js/*.js + fonts/ (build.ps1).
+  Schriften: Fraunces (c) 2020 The Fraunces Project Authors; Source Code Pro (c) 2010, 2012
+  Adobe Systems Incorporated, Reserved Font Name 'Source'. Beide SIL Open Font License 1.1,
+  Lizenztexte: fonts/*-OFL.txt (https://openfontlicense.org).
+==========================================================================================
+-->
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wachs & Wandel</title>
+<style>
+@font-face { font-family: "Fraunces"; font-weight: 600; src: url(data:font/woff2;base64,@@FONT_FRAUNCES@@) format("woff2"); }
+@font-face { font-family: "SourceCode"; font-weight: 400; src: url(data:font/woff2;base64,@@FONT_SCP@@) format("woff2"); }
+:root {
+  --wood-0: #110904; --wood-1: #1c1108; --wood-2: #2a1a0d; --wood-3: #3b2513;
+  --wax: #e9c98b; --honey: #f5a623; --amber: #d9780f; --cream: #f7ead0; --ink: #f2e3c6; --muted: #b19773;
+  --pollen: #ff5d1f; --nectar: #ffd86b; --water: #4fb3d9; --ok: #a8d14f; --fail: #ff3b2f;
+  --line: rgba(233, 201, 139, .17); --panel: rgba(28, 17, 8, .86);
+  --f-display: "Fraunces", serif; --f-mono: "SourceCode", monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  color: var(--ink); font: 13px/1.45 var(--f-mono); background-color: var(--wood-0); min-height: 100vh;
+  background-image:
+    radial-gradient(1100px 700px at 28% 35%, rgba(245,166,35,.12), transparent 60%),
+    radial-gradient(900px 600px at 88% 8%, rgba(217,120,15,.10), transparent 65%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='56' height='97' viewBox='0 0 56 97'><path d='M28 0 L56 16 L56 48 L28 64 L0 48 L0 16 Z M28 64 L28 97' fill='none' stroke='%23e9c98b' stroke-opacity='.05' stroke-width='1.2'/></svg>"),
+    linear-gradient(160deg, var(--wood-2), var(--wood-0) 70%);
+}
+header { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; flex-wrap: wrap; padding: 18px 26px 12px; border-bottom: 1px solid var(--line); }
+.eyebrow { font: 11px/1.2 var(--f-mono); letter-spacing: .18em; text-transform: uppercase; color: var(--honey); }
+h1 { font: 600 40px/1 var(--f-display); margin: 6px 0 0; color: var(--cream); letter-spacing: .3px; }
+h1 span { color: var(--honey); }
+.stamp { text-align: right; font-size: 11px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+h2 { font: 600 17px/1.2 var(--f-display); margin: 0 0 10px; color: var(--wax); }
+h3 { font: 600 14px/1.2 var(--f-display); margin: 14px 0 6px; color: var(--wax); }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 26px; border-bottom: 1px solid var(--line); background: rgba(17, 9, 4, .55); }
+.group { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; }
+.spacer { flex: 1; }
+button { font: 12px var(--f-mono); color: var(--cream); background: var(--wood-3); border: 1px solid rgba(233,201,139,.28); border-radius: 4px; padding: 7px 12px; cursor: pointer; white-space: nowrap; font-variant-numeric: tabular-nums; }
+button:hover:not(:disabled) { border-color: var(--honey); }
+button[aria-pressed="true"], button.primary { background: var(--honey); color: var(--wood-0); border-color: var(--honey); }
+button.danger { background: var(--pollen); color: #fff; border-color: var(--pollen); }
+button:disabled { opacity: .45; cursor: default; }
+#pause { min-width: 96px; } #slow { min-width: 108px; } #normal, #speed { min-width: 92px; }
+.seedbox { width: 120px; font: 13px var(--f-mono); color: var(--cream); background: var(--wood-1); border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; font-variant-numeric: tabular-nums; }
+.badge { padding: 5px 10px; border: 1px solid var(--line); border-radius: 999px; font-variant-numeric: tabular-nums; min-width: 92px; text-align: center; color: var(--honey); }
+.badge.ok { color: var(--ok); border-color: rgba(168,209,79,.45); } .badge.fail { background: var(--fail); color: #fff; border-color: var(--fail); }
+main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; padding: 18px 26px 26px; }
+.stage { min-width: 0; }
+.scene { position: relative; height: clamp(460px, 64vh, 760px); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: rgba(10, 6, 3, .45); }
+canvas#world { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; }
+.scene-top { position: absolute; left: 18px; top: 14px; pointer-events: none; max-width: 52%; }
+.scene-top h2 { font-size: 22px; color: var(--cream); margin: 4px 0 2px; }
+.scene-top p { margin: 0; color: var(--muted); font-size: 12px; }
+.weather { position: absolute; right: 18px; top: 14px; text-align: right; pointer-events: none; }
+.weather b { font: 600 18px var(--f-display); color: var(--honey); display: block; }
+.weather small { color: var(--muted); }
+.scene-foot { position: absolute; left: 18px; right: 18px; bottom: 10px; display: flex; justify-content: space-between; gap: 10px; font-size: 11px; letter-spacing: .08em; color: var(--muted); pointer-events: none; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 12px 2px 4px; font-size: 12px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 12px; height: 12px; display: inline-block; clip-path: polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%); }
+.layers { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 6px 2px 0; color: var(--muted); }
+.layers input, input[type=range] { accent-color: var(--honey); }
+.bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 18px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; min-width: 0; }
+aside { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.stat { background: rgba(0,0,0,.25); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; min-height: 76px; min-width: 0; }
+.stat strong { display: block; height: 32px; line-height: 32px; font: 600 26px/32px var(--f-display); color: var(--honey); white-space: nowrap; font-variant-numeric: tabular-nums; overflow: hidden; }
+.stat small { color: var(--muted); font-size: 11px; display: block; }
+.rows { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+.rows span { font-size: 10px; color: var(--muted); white-space: nowrap; min-width: 0; }
+.rows b { display: block; font: 13px var(--f-mono); color: var(--cream); font-variant-numeric: tabular-nums; }
+.control { margin: 10px 0; }
+.control label { display: flex; justify-content: space-between; color: var(--muted); }
+.control output { min-width: 48px; text-align: right; color: var(--cream); font-variant-numeric: tabular-nums; }
+.control input { width: 100%; }
+.hint { color: var(--muted); font-size: 11px; }
+.inspection table, table.checks { width: 100%; border-collapse: collapse; font-size: 12px; }
+.inspection th, .inspection td, .checks td { padding: 3px 4px; text-align: left; vertical-align: top; }
+.inspection th { color: var(--muted); font-weight: 400; width: 46%; }
+.inspection td { color: var(--cream); font-variant-numeric: tabular-nums; }
+.checks td.pass { color: var(--ok); } .checks td.fail { color: var(--fail); font-weight: 700; } .checks td.pending { color: var(--muted); }
+#alert:not(:empty) { margin-top: 8px; padding: 8px 10px; background: var(--fail); color: #fff; border-radius: 4px; white-space: pre-line; }
+.accept { white-space: pre-line; font-size: 11px; color: var(--ink); margin-top: 8px; }
+.log { max-height: 220px; overflow-y: auto; font-size: 11px; }
+.log p { margin: 0; padding: 2px 0; border-bottom: 1px dotted rgba(233,201,139,.09); }
+.log .t { color: var(--muted); }
+footer { padding: 0 26px 22px; color: var(--muted); font-size: 11px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+dialog { width: min(780px, 94vw); max-height: 90vh; background: var(--wood-1); color: var(--ink); border: 1px solid var(--amber); border-radius: 8px; padding: 20px 24px; box-shadow: 0 24px 80px rgba(0,0,0,.6); }
+dialog::backdrop { background: rgba(8, 4, 2, .72); }
+dialog h2 { font-size: 24px; color: var(--honey); }
+dialog ol, dialog ul { padding-left: 20px; } dialog li { margin: 3px 0; }
+dialog table { border-collapse: collapse; font-size: 12px; } dialog td, dialog th { padding: 2px 8px 2px 0; text-align: left; }
+.reveal { opacity: 0; transform: translateY(10px); animation: rv .6s cubic-bezier(.2,.7,.2,1) forwards; }
+@keyframes rv { to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .reveal { animation: none; opacity: 1; transform: none; } }
+@media (max-width: 1000px) { main { grid-template-columns: 1fr; } .bottom { grid-template-columns: 1fr; } }
+@media (max-width: 600px) {
+  header, .toolbar { padding-left: 16px; padding-right: 16px; } main { padding: 14px 16px 20px; }
+  h1 { font-size: 32px; } .stamp { text-align: left; } .scene { height: 86vh; min-height: 640px; }
+  .scene-top { max-width: calc(100% - 36px); } .scene-top h2 { font-size: 17px; } .scene-top p { display: none; }
+  .weather { left: 18px; right: auto; top: 66px; text-align: left; } .weather b { display: inline; font-size: 14px; } .weather small { display: block; }
+  .scene-foot span:first-child { display: none; }
+}
+</style>
+</head>
+<body>
+<header class="reveal" style="animation-delay:.05s">
+  <div><div class="eyebrow">Ein lebendes System · Interaktives Labor</div><h1>Wachs <span>&amp;</span> Wandel</h1></div>
+  <div class="stamp">Das Innenleben eines Bienenstocks<br>Version 3 · 1 Tick = 0,1 Tage · Ressourcen in Modelleinheiten</div>
+</header>
+<div class="toolbar reveal" style="animation-delay:.12s">
+  <button id="pause" class="primary" aria-pressed="false">Ⅱ Pause</button>
+  <span class="group" role="group" aria-label="Tempo">
+    <button id="slow" aria-pressed="false" title="Zeitlupe: ein Viertel der normalen Geschwindigkeit">¼× Zeitlupe</button>
+    <button id="normal" aria-pressed="true" title="Normaltempo: 1 Sim-Tag pro Sekunde">1× Normal</button>
+    <button id="speed" aria-pressed="false" title="Doppelte Geschwindigkeit">2× Tempo</button>
+  </span>
+  <button id="reset" title="Neu starten mit zufälligem Seed">↻ Neuer Seed</button>
+  <button id="stress" class="danger">Stress-Test</button>
+  <button id="reports" disabled>Berichte</button>
+  <span class="spacer"></span>
+  <span class="group"><label class="hint" for="seed">Seed</label><input id="seed" class="seedbox" inputmode="numeric" aria-label="Seed"><button id="replay" title="Mit diesem Seed und den aktuellen Reglern neu starten">Start</button></span>
+  <span id="day" class="badge">Tag 0,0</span>
+  <span id="checkBadge" class="badge">Prüfung …</span>
+</div>
+<main>
+  <div class="stage reveal" style="animation-delay:.2s">
+    <div class="scene">
+      <canvas id="world" aria-label="Animierter Bienenstock mit Wabe, Bienen, Blütenfeldern und Wetter"></canvas>
+      <div class="scene-top"><div class="eyebrow">Apis · Beobachtungsfenster</div><h2>Eine kleine Welt im Wandel.</h2><p id="sceneNote">Eine Zelle anklicken, um hineinzusehen.</p></div>
+      <div class="weather"><b id="weather">Sonne</b><small id="temperature">35,0 °C im Brutnest</small></div>
+      <div class="scene-foot"><span>BRUTNEST → POLLENKRANZ → HONIGSPEICHER</span><span id="capacity">80 / 1.200 Zellen</span></div>
+    </div>
+    <div class="legend" id="legend"></div>
+    <div class="layers"><label><input id="paths" type="checkbox" checked> Bienenpfade</label><label><input id="heat" type="checkbox"> Temperaturzonen</label><label><input id="flows" type="checkbox" checked> Ressourcenflüsse</label></div>
+    <div class="bottom">
+      <div class="panel">
+        <h2>Systemprüfung</h2>
+        <table class="checks" aria-label="Invarianten"><tbody id="checks"></tbody></table>
+        <div id="alert" role="status"></div>
+        <button id="acceptance" style="margin-top:12px">Abnahme · 20 Seeds messen</button>
+        <div id="acceptResult" class="accept"></div>
+        <h3>Ausbaustufen</h3>
+        <p class="hint" id="stages"></p>
+      </div>
+      <div class="panel">
+        <h2>Stockchronik</h2>
+        <div id="log" class="log" aria-live="off"></div>
+        <h3>Modell &amp; Annahmen</h3>
+        <p class="hint">Didaktisches Modell, keine biologische Prognose. Honig entsteht nur über Sammeln → Übergabe → Einlagern (60 % Wasser) → Fächeln → unter 20 %. Jede Einheit Nektar, Pollen und Wasser ist verbucht. Zahlen und Entscheidungen stehen im Quelltext (Design decisions, Mengengerüst).</p>
+      </div>
+    </div>
+  </div>
+  <aside>
+    <section class="panel reveal" style="animation-delay:.3s">
+      <h2>Das Volk <span id="liveState" class="hint">aktiv</span></h2>
+      <div class="stat-grid">
+        <div class="stat"><strong id="pop">0</strong><small>Bienen / <span id="targetView">150</span> Ziel</small></div>
+        <div class="stat"><strong id="brood">0</strong><small>Brutzellen</small></div>
+        <div class="stat"><strong id="honey">0</strong><small>Honig (gedeckelt)</small></div>
+        <div class="stat"><strong id="efficiency">0 %</strong><small>Erfolgreiche Sammelflüge</small></div>
+      </div>
+      <div class="rows" id="roles"></div>
+      <div class="rows" id="broodStats"></div>
+      <div class="rows" id="resources"></div>
+      <div class="rows" id="mortality"></div>
+    </section>
+    <section class="panel reveal" style="animation-delay:.38s">
+      <h2>Lebensbedingungen</h2>
+      <div class="control"><label for="colony">Zielpopulation <output id="colonyOut">150</output></label><input id="colony" type="range" min="30" max="400" value="150"></div>
+      <div class="control"><label for="resource">Ressourcen / Blüten <output id="resourceOut">70 %</output></label><input id="resource" type="range" min="0" max="100" value="70"></div>
+      <div class="control"><label for="stability">Wetterstabilität <output id="stabilityOut">70 %</output></label><input id="stability" type="range" min="0" max="100" value="70"></div>
+      <div class="control"><label for="disease">Krankheitsdruck <output id="diseaseOut">15 %</output></label><input id="disease" type="range" min="0" max="100" value="15"></div>
+      <p id="stressInfo" class="hint">Stress-Test: 30 Tage mit 10 % Ressourcen, 10 % Wetterstabilität und 80 % Krankheitsdruck.</p>
+    </section>
+    <section class="panel reveal" style="animation-delay:.46s">
+      <h2>Zell-Inspektor</h2>
+      <div id="inspector" class="inspection"></div>
+    </section>
+  </aside>
+</main>
+<footer><span>WACHS &amp; WANDEL · Version 3 · Lokal. Reproduzierbar. Beobachtbar.</span><span id="runtime"></span></footer>
+<dialog id="report"><h2 id="reportTitle"></h2><div id="reportBody"></div><p><button id="closeReport" class="primary">Bericht schließen</button></p></dialog>
+<script type="application/json" id="savedAcceptance">@@ACCEPTANCE@@</script>
+<script>
+@@SCRIPT@@
+</script>
+</body>
+</html>
