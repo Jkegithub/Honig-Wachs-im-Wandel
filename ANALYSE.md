@@ -61,6 +61,14 @@ Wirkt über den ganzen Bereich monoton (in Revision 2 eine Kippkante bei 42 %, i
    - Der Freitext „Browserabnahme 1440/390 px“ ist eingetragen, nicht gemessen; Takt und 390 px wurden hier separat gemessen.
    - Start mit 94 statt ~80 Zellen, begründet.
 
+## Änderung nach der Abnahme (17.10.2026)
+
+Tempo-Bedienung getrennt: drei Buttons **¼× · 1× · 2×**, die ihr Tempo setzen statt umzuschalten,
+genau einer aktiv, auf schmalen Bildschirmen in einer Zeile. Reine UI-Änderung (`actions`, `uiProbe`,
+`syncControls`, Toolbar, CSS). Die Modellkennung bleibt `ece34155`, der gespeicherte Abnahmebericht gilt weiter.
+Nachgemessen bei 1600 und 390 px: 9/9 Invarianten, S6 mit 8 Aktionen, 2,5 / 10 / 20 Ticks/s,
+bei 1× misst S5 10 Ticks, kein horizontaler Überlauf.
+
 ## Verlauf der Befunde
 
 | Befund | Rev. 2 | Rev. 3 | Rev. 4 |

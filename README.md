@@ -11,8 +11,13 @@ es gibt keine Frameworks und keine externen Dateien. Die Oberfläche der Simulat
 
 **Offline:** [`index.html`](index.html) herunterladen (auf GitHub „Download raw file“) und per Doppelklick
 im Browser öffnen. Es wird kein Server gebraucht.
-Die Simulation startet in ¼×-Zeitlupe. Ein Klick auf „¼× Zeitlupe“ schaltet auf Normaltempo
-(1 Sim-Tag pro Sekunde), „2× Tempo“ verdoppelt.
+Tempo über drei getrennte Buttons, von denen genau einer aktiv ist: **¼× Zeitlupe** (Start),
+**1× Normal** (1 Sim-Tag pro Sekunde), **2× Tempo**.
+
+**Seed:** Jeder Lauf hat einen Seed (Startwert des Zufallsgenerators, beim Laden immer `1729`). Er legt alle
+Zufallsereignisse fest, also Alter und Lebensdauer der Bienen, Wetterphasen und Krankheitsfälle. Gleicher Seed
+und gleiche Regler ergeben einen identischen Verlauf. Einen anderen Seed eintragen und auf **Start** klicken;
+**↻ Neuer Seed** würfelt einen zufälligen.
 
 ## Was diese Variante auszeichnet
 
