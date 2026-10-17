@@ -216,6 +216,12 @@ function renderFrame(M, alpha, visualTime, selected) {
   drawBees(g, M, alpha, visualTime, reveal);
 }
 
+// [renderer] Klick -> Blütenfeld (Trefferkreis um die Blüten)
+function patchAtScreen(M, px, py) {
+  const o = toScreen(M, 0, 0, 'out'), o1 = toScreen(M, 1, 0, 'out'), so = Math.hypot(o1[0] - o[0], o1[1] - o[1]);
+  for (const p of M.patches) { const [x, y] = toScreen(M, p.u, p.v, 'out'); if (Math.hypot(px - x, py - y) < Math.max(22, 50 * so)) return p; }
+  return null;
+}
 // [renderer] Klick -> Zelle (Bildschirm -> Wabenkoordinate -> axial)
 function cellAtScreen(M, px, py) {
   const c = VIEW.cam, x = VIEW.vertical ? (py - c.cy) / c.s : (px - c.cx) / c.s, y = VIEW.vertical ? -(px - c.cx) / c.s : (py - c.cy) / c.s;   // Umkehr der Drehung

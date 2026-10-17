@@ -26,7 +26,8 @@ function pickScene(now) {
 // [ui] echte Modellereignisse beobachten (ohne Eingriff ins Modell): Heimflug mit Last, Schlupf, Regenbeginn
 function detectSceneEvents(M) {
   for (const b of M.bees) {
-    if (b.task === 'home' && b.load.amount && (b.load.kind === 'nectar' || b.load.kind === 'pollen') && !UI.homeSeen.has(b.id)) {
+    const sunny = !M.weather.rain && !M.weather.cloudy;               // Heimflug-Szenen automatisch nur bei Sonnenschein
+    if (sunny && b.task === 'home' && b.load.amount && (b.load.kind === 'nectar' || b.load.kind === 'pollen') && !UI.homeSeen.has(b.id)) {
       UI.homeSeen.add(b.id);
       const p = M.patches[b.src];
       startScene('flight', { kind: b.load.kind, amount: b.load.amount, patch: p ? p.name : 'Feld', beeId: b.id, hue: p ? p.hue : 55 });
@@ -37,8 +38,25 @@ function detectSceneEvents(M) {
     if (nb) startScene('hatch', { cellId: modelCellAt(M, nb.x, nb.y) ?? '—', beeId: nb.id });
     UI.lastBorn = M.born; UI.lastNextId = M.nextId;
   }
-  if (M.weather.rain && !UI.lastRain) startScene('rain', { returning: M.bees.filter(b => b.task === 'out' || b.task === 'gather' || b.task === 'home').length });
+  if (M.weather.rain && !UI.lastRain && M.layers.scenes !== false) {   // Regen: sofort, unterbricht eine laufende Szene
+    const data = { returning: M.bees.filter(b => b.task === 'out' || b.task === 'gather' || b.task === 'home').length };
+    UI.lastData.rain = data; UI.scene = { type: 'rain', data, t: 0, dur: 5.5 }; UI.lastShown.rain = performance.now(); delete UI.pending.rain;
+  }
   UI.lastRain = M.weather.rain;
+}
+// [ui] Klick auf ein Blütenfeld: Heimflug einer Sammlerin, die gerade von dort kommt — sonst ausgewiesenes Beispiel
+function playFlightFrom(p) {
+  const M = UI.M; if (M.layers.scenes === false) return;
+  const b = M.bees.find(x => x.task === 'home' && x.load.amount && x.src === p.id && x.load.kind !== 'water');
+  const data = b ? { kind: b.load.kind, amount: b.load.amount, patch: p.name, beeId: b.id, hue: p.hue }
+    : { kind: 'nectar', amount: Math.min(M.loadFor('nectar'), Math.floor(p.nectar)), patch: p.name, beeId: '—', hue: p.hue, example: true };
+  UI.scene = { type: 'flight', data, t: 0, dur: 5.5 }; UI.lastShown.flight = performance.now();
+}
+// [ui] Klick auf Larve oder Puppe: Schlupf-Vorschau mit der verbleibenden Entwicklungszeit dieser Zelle
+function playHatchPreview(c) {
+  const M = UI.M; if (M.layers.scenes === false || (c.state !== 'larva' && c.state !== 'pupa')) return;
+  const days = c.state === 'pupa' ? (CFG.PUPA - c.dev) / 10 : (CFG.LARVA - c.dev + CFG.PUPA) / 10;
+  UI.scene = { type: 'hatch', data: { cellId: c.id, preview: true, stage: LABELS[c.state], days: Math.max(0, days) }, t: 0, dur: 5.5 }; UI.lastShown.hatch = performance.now();
 }
 // [ui] Button: nächste Szene mit den zuletzt beobachteten Daten (sonst Beispieldaten) abspielen
 function playNextScene() {
@@ -265,11 +283,23 @@ function bootUI() {
   $('report').addEventListener('cancel', e => e.preventDefault());      // Escape schließt nicht
   $('world').addEventListener('click', e => {
     const r = $('world').getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
-    if (UI.scene) { const s = sceneRect(UI.M); if (px >= s.x && px <= s.x + s.w && py >= s.y && py <= s.y + s.h) { UI.scene = null; UI.nextSceneAt = performance.now() + 8000; return; } }   // Klick schließt die Szene
-    const id = cellAtScreen(UI.M, px, py); if (id !== null) { UI.selected = id; renderInspector(); }
+    if (UI.scene) { const s = sceneRect(UI.M, UI.scene); if (px >= s.x && px <= s.x + s.w && py >= s.y && py <= s.y + s.h) { UI.scene = null; UI.nextSceneAt = performance.now() + 8000; return; } }   // Klick schließt die Szene
+    const p = patchAtScreen(UI.M, px, py); if (p) { playFlightFrom(p); return; }
+    const id = cellAtScreen(UI.M, px, py);
+    if (id !== null) { UI.selected = id; renderInspector(); playHatchPreview(UI.M.cells[id]); }
   });
-  const chip = (col, l) => '<span><i style="background:' + col + '"></i>' + l + '</span>';
-  $('legend').innerHTML = Object.keys(LABELS).map(k => chip(CELL_COL[k], LABELS[k])).join('')
+  const hex = (r, f) => '<polygon fill="' + f + '" points="' + [0, 1, 2, 3, 4, 5].map(i => { const a = Math.PI / 3 * i - Math.PI / 2; return (8 + r * Math.cos(a)).toFixed(1) + ',' + (8 + r * Math.sin(a)).toFixed(1); }).join(' ') + '"/>';
+  const CHIP = {                                        // Legende zeigt die Zelle so, wie sie in der Wabe gezeichnet wird (70_render.js)
+    empty: hex(7.5, CELL_COL.empty),
+    egg: hex(7.5, '#2b1b0d') + '<ellipse cx="8" cy="8" rx="1.4" ry="3.2" transform="rotate(29 8 8)" fill="#f4f1e8"/>',
+    larva: hex(7.5, '#2b1b0d') + '<path d="M10.3 9.5 A3 3 0 1 1 10.5 6.6" fill="none" stroke="#fbefcf" stroke-width="2" stroke-linecap="round"/>',
+    pupa: hex(7.5, CELL_COL.pupa) + hex(5.2, '#b9824a'),
+    pollen: hex(7.5, '#3f2812') + hex(5.5, CELL_COL.pollen),
+    nectar: '<defs><linearGradient id="lgN" x1="0" x2="1"><stop offset=".45" stop-color="#fff6cd"/><stop offset=".55" stop-color="#ffbc30"/></linearGradient></defs>' + hex(7.5, '#3f2812') + hex(5.5, 'url(#lgN)'),
+    honey: hex(7.5, '#e8961c') + hex(5.4, '#f6c45a') + '<circle cx="6.1" cy="6.1" r="1.4" fill="rgba(255,255,255,.25)"/>'
+  };
+  const chip = k => '<span><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">' + CHIP[k] + '</svg>' + LABELS[k] + (k === 'nectar' ? ' (frisch → reifend)' : '') + '</span>';
+  $('legend').innerHTML = Object.keys(LABELS).map(chip).join('')
     + Object.keys(ROLE_COL).map(k => '<span><b style="color:' + ROLE_COL[k] + '">●</b>' + ROLES[k] + '</span>').join('')
     + Object.keys(RES_COL).map(k => '<span><b style="color:' + RES_COL[k] + '">•</b>Last ' + ({ nectar: 'Nektar', pollen: 'Pollen', water: 'Wasser' })[k] + '</span>').join('');
   $('stages').textContent = 'Stufe 1 Kern, Stufe 2 Aufbau und Stufe 3 Layer/Visuelles vollständig. Weggelassen: nichts. Abweichungen, offen ausgewiesen: Königin implizit, Wasser im Tank statt in Zellen, Amme versorgt Ziel- und Nachbarlarven, Taktprüfung in der ersten Sekunde bei 1× (danach Zeitlupe), Stress-Abnahme mit gestaffeltem Start. Zusatz: 3D-Vignetten (Heimflug, Schlupf, Regen-Rückzug) im selben Canvas, ausgelöst durch echte Modellereignisse; bei „Bewegung reduzieren“ aus.';

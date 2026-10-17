@@ -24,11 +24,17 @@ Es wird kein Server gebraucht.
   Bienen, Wetter und Krankheitsfälle. Gleicher Seed und gleiche Regler ergeben einen identischen Verlauf. Einen anderen
   Seed eintragen und auf **Start** klicken; **↻ Neuer Seed** würfelt einen zufälligen.
 - **Zelle anklicken:** Der Inspektor zeigt Zustand, Füllgrad, Wassergehalt, Alter, Temperatur und die zuständige Biene.
-- **3D-Szenen:** Kurze 3D-Vignetten im selben Bild, ausgelöst durch echte Ereignisse der Simulation:
-  **Heimflug** einer Sammlerin mit Nektar oder Pollen (mit ihrer Nummer, Menge und Blütenfeld), **Schlupf** einer jungen
-  Biene aus ihrer Zelle und **Regen-Rückzug** in den Stock. Die 3D-Darstellung ist selbst geschrieben (Projektion, Licht,
-  Tiefensortierung), ohne Bibliothek. Schalter „3D-Szenen“, Button „▶ 3D-Szene“ zum Abspielen auf Wunsch; Klick auf die
-  Szene schließt sie. Bei „Bewegung reduzieren“ im Betriebssystem sind sie aus.
+  Die Legende zeigt jede Zellart so, wie sie in der Wabe gezeichnet ist (Ei als Stift, Larve als Bogen, Nektar frisch hell → reifend gelb).
+- **3D-Szenen:** Kurze 3D-Vignetten im selben Bild, am Ort des Geschehens und auf 2/3 der Bildgröße:
+  - **Heimflug** einer Sammlerin mit Nektar oder Pollen (Nummer, Menge, Blütenfeld) — von selbst nur bei Sonnenschein,
+    oder per **Klick auf eine Blüte** (echte heimkehrende Biene von diesem Feld, sonst als Beispiel gekennzeichnet).
+  - **Schlupf** einer jungen Biene — von selbst beim echten Schlupf, oder per **Klick auf eine Larve/Puppe** als Vorschau
+    („schlüpft in ~x Tagen“).
+  - **Regen-Rückzug** — startet **sofort** bei einsetzendem Regen und unterbricht eine laufende Szene.
+
+  Die 3D-Darstellung ist selbst geschrieben (Projektion, Licht, Tiefensortierung), ohne Bibliothek. Schalter „3D-Szenen“,
+  Button „▶ 3D-Szene“ zum Abspielen auf Wunsch; Klick auf die Szene schließt sie. Bei „Bewegung reduzieren“ im
+  Betriebssystem sind sie aus.
 
 ## Was Version 3 auszeichnet
 

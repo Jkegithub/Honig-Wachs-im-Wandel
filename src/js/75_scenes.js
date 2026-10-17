@@ -128,12 +128,31 @@ function hslRgb(h, s, l) {
   return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)];
 }
 
-// [scenes3d] Bild-im-Bild-Fläche der Szene (über der Wiese; im Hochformat oben in der Wiese)
-function sceneRect(M) {
-  const mr = meadowRect(M);
-  if (VIEW.vertical) { const w = Math.min(300, VIEW.w - 24), h = Math.round(w * 0.62); return { x: VIEW.w - w - 12, y: mr.y0 + 8, w, h }; }
-  const w = Math.max(220, Math.min(340, mr.w - 20)), h = Math.round(w * 0.62);
-  return { x: mr.x0 + mr.w - w - 10, y: mr.y0 + mr.h - h - 10, w, h };
+// [scenes3d] Bildschirmrechteck der Wabe (Rahmen, in beiden Ausrichtungen)
+function combRect(M) {
+  const e = M.extent, a = toScreen(M, e.minX - 10, e.minY - 10, 'hive'), b = toScreen(M, M.entrance.x + 4, e.maxY + 10, 'hive');
+  const x0 = Math.min(a[0], b[0]), y0 = Math.min(a[1], b[1]); return { x0, y0, w: Math.abs(a[0] - b[0]), h: Math.abs(a[1] - b[1]) };
+}
+// [scenes3d] Bild-im-Bild-Fläche (2/3 der früheren Größe), am Ort des Geschehens verankert:
+// Schlupf über der Wabe neben seiner Zelle, Heimflug am Blütenfeld, Regen am Flugloch im Freifeld
+function sceneRect(M, sc) {
+  const mr = meadowRect(M), w = Math.round(VIEW.vertical ? Math.min(200, VIEW.w - 24) : Math.max(150, Math.min(227, mr.w * 0.45))), h = Math.round(w * 0.62);
+  let region = mr, anchor = toScreen(M, 0, 0, 'out');                  // Standard: Flugloch im Freifeld
+  if (sc && sc.type === 'hatch' && Number.isInteger(sc.data.cellId) && M.cells[sc.data.cellId]) {
+    const c = M.cells[sc.data.cellId]; anchor = toScreen(M, c.x, c.y, 'hive'); region = combRect(M);
+    if (region.w < w + 12 || region.h < h + 12) region = { x0: 0, y0: 0, w: VIEW.w, h: VIEW.h };
+  } else if (sc && sc.type === 'flight') { const p = M.patches.find(q => q.name === sc.data.patch); if (p) anchor = toScreen(M, p.u, p.v, 'out'); }
+  else if (sc && sc.type === 'rain') anchor = [anchor[0] + (VIEW.vertical ? 0 : 60), anchor[1] + (VIEW.vertical ? 30 : 0)];
+  const x = clamp(anchor[0] - w / 2, region.x0 + 6, region.x0 + region.w - w - 6);
+  let y = anchor[1] - h - 18;                                            // über dem Anker, damit er sichtbar bleibt
+  if (y < region.y0 + 6) y = anchor[1] + 18;
+  y = clamp(y, region.y0 + 6, region.y0 + region.h - h - 6);
+  return { x: Math.round(x), y: Math.round(y), w, h };
+}
+// [scenes3d] Text in die Breite einpassen (Schrift schrumpft bis 7 px)
+function fitText(g, text, maxW, size, family) {
+  let s = size; g.font = family.replace('{s}', s);
+  while (s > 7 && g.measureText(text).width > maxW) { s -= 0.5; g.font = family.replace('{s}', s); }
 }
 
 // [scenes3d] Szene 1: Sammlerin fliegt mit Nektar (oder Pollen) von der Blüte heim
@@ -147,7 +166,7 @@ function sceneFlight(g, rect, t, d, dur) {
   const heading = Math.atan2(0.9 * Math.PI * Math.cos(k * Math.PI) / 5.6, 1) * 0.6;
   emitBee(faces, { pos: p, rot: [0.12 * Math.sin(t * 5), -0.25, heading], s: 0.95 }, 0.35 + 0.75 * Math.sin(t * 42), { nectar: d.kind === 'nectar', pollen: d.kind === 'pollen' });
   draw3D(g, faces, { pos: [0.4 + k * 0.8, 1.1, 6.2], target: [0.2 + k * 1.2, 0, 0], fov: 0.85 }, rect);
-  return ['Heimflug mit ' + (d.kind === 'pollen' ? 'Pollen' : 'Nektar'), 'Sammlerin #' + d.beeId + ' · ' + fmt(d.amount) + ' Einheiten von ' + d.patch];
+  return ['Heimflug mit ' + (d.kind === 'pollen' ? 'Pollen' : 'Nektar'), (d.example ? 'Beispiel · ' : 'Sammlerin #' + d.beeId + ' · ') + fmt(d.amount) + ' Einh. von ' + d.patch];
 }
 // [scenes3d] Szene 2: Zelldeckel öffnet sich, junge Biene arbeitet sich heraus
 function sceneHatch(g, rect, t, d, dur) {
@@ -165,7 +184,8 @@ function sceneHatch(g, rect, t, d, dur) {
   const rise = clamp((k - 0.3) / 0.6, 0, 1), y = -1.3 + rise * 1.75;
   emitBee(faces, { pos: [0, y, 0], rot: [0, 0.4 + rise * 0.6, Math.PI / 2 - rise * 1.1], s: 0.95 }, rise > 0.8 ? 0.5 + 0.5 * Math.sin(t * 30) : 0.15, { young: true, wings: 0.3 + rise * 0.7 });
   draw3D(g, faces, { pos: [0.5, 4.4, 4.2], target: [0, -0.1, 0], fov: 0.8 }, rect);
-  return ['Schlupf', 'Zelle #' + d.cellId + ' · junge Biene #' + d.beeId + ' nach 21 Tagen Entwicklung'];
+  return d.preview ? ['Schlupf · Vorschau', 'Zelle #' + d.cellId + ' · ' + d.stage + ' · schlüpft in ~' + fmt(d.days, 1) + ' Tagen']
+    : ['Schlupf', 'Zelle #' + d.cellId + ' · junge Biene #' + d.beeId + ' nach 21 Tagen'];
 }
 // [scenes3d] Szene 3: Regen setzt ein, Sammlerinnen kehren zum Flugloch zurück
 function sceneRain(g, rect, t, d, dur) {
@@ -191,26 +211,26 @@ function sceneRain(g, rect, t, d, dur) {
     const a = pr.project([x, y, z]), b = pr.project([x - 0.05, y - 0.35, z]);
     if (a && b) { g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); }
   }
-  return ['Regen — Rückzug in den Stock', d.returning + ' Sammlerinnen kehren heim · neue Ausflüge ruhen'];
+  return ['Regen — Rückzug in den Stock', d.returning + ' Sammlerinnen kehren heim · Ausflüge ruhen'];
 }
 
 // [scenes3d] Bild-im-Bild zeichnen: Rahmen, Szene, Titel, Zeitleiste; Ein-/Ausblenden
 function drawScene3D(g, M, sc) {
   if (!sc) return;
-  const rect = sceneRect(M), fade = clamp(Math.min(sc.t / 0.35, (sc.dur - sc.t) / 0.35), 0, 1);
+  const rect = sceneRect(M, sc), fade = clamp(Math.min(sc.t / 0.35, (sc.dur - sc.t) / 0.35), 0, 1);
   g.save(); g.globalAlpha = fade;
-  g.fillStyle = 'rgba(0,0,0,.5)'; g.beginPath(); g.roundRect(rect.x + 4, rect.y + 6, rect.w, rect.h, 10); g.fill();
-  g.beginPath(); g.roundRect(rect.x, rect.y, rect.w, rect.h, 10); g.save(); g.clip();
+  g.fillStyle = 'rgba(0,0,0,.5)'; g.beginPath(); g.roundRect(rect.x + 3, rect.y + 4, rect.w, rect.h, 8); g.fill();
+  g.beginPath(); g.roundRect(rect.x, rect.y, rect.w, rect.h, 8); g.save(); g.clip();
   const fn = { flight: sceneFlight, hatch: sceneHatch, rain: sceneRain }[sc.type];
   const [title, info] = fn(g, rect, sc.t, sc.data, sc.dur);
-  const grad = g.createLinearGradient(0, rect.y + rect.h - 52, 0, rect.y + rect.h); grad.addColorStop(0, 'rgba(10,6,3,0)'); grad.addColorStop(1, 'rgba(10,6,3,.85)');
-  g.fillStyle = grad; g.fillRect(rect.x, rect.y + rect.h - 52, rect.w, 52);
-  g.fillStyle = '#f5a623'; g.font = '600 14px Fraunces, serif'; g.fillText(title, rect.x + 12, rect.y + rect.h - 26);
-  g.fillStyle = '#f2e3c6'; g.font = '10px SourceCode, monospace'; g.fillText(info, rect.x + 12, rect.y + rect.h - 11);
-  g.fillStyle = 'rgba(242,227,198,.6)'; g.textAlign = 'right'; g.fillText('3D · Klick schließt', rect.x + rect.w - 10, rect.y + 16); g.textAlign = 'left';
-  g.fillStyle = '#f5a623'; g.fillRect(rect.x, rect.y + rect.h - 3, rect.w * clamp(sc.t / sc.dur, 0, 1), 3);
+  const band = 38, grad = g.createLinearGradient(0, rect.y + rect.h - band, 0, rect.y + rect.h); grad.addColorStop(0, 'rgba(10,6,3,0)'); grad.addColorStop(1, 'rgba(10,6,3,.88)');
+  g.fillStyle = grad; g.fillRect(rect.x, rect.y + rect.h - band, rect.w, band);
+  g.fillStyle = '#f5a623'; fitText(g, title, rect.w - 16, 12, '600 {s}px Fraunces, serif'); g.fillText(title, rect.x + 8, rect.y + rect.h - 18);
+  g.fillStyle = '#f2e3c6'; fitText(g, info, rect.w - 16, 9, '{s}px SourceCode, monospace'); g.fillText(info, rect.x + 8, rect.y + rect.h - 7);
+  g.fillStyle = 'rgba(242,227,198,.65)'; g.font = '10px SourceCode, monospace'; g.textAlign = 'right'; g.fillText('3D ✕', rect.x + rect.w - 7, rect.y + 13); g.textAlign = 'left';
+  g.fillStyle = '#f5a623'; g.fillRect(rect.x, rect.y + rect.h - 2, rect.w * clamp(sc.t / sc.dur, 0, 1), 2);
   g.restore();
-  g.strokeStyle = 'rgba(245,166,35,.7)'; g.lineWidth = 1.5; g.beginPath(); g.roundRect(rect.x, rect.y, rect.w, rect.h, 10); g.stroke();
+  g.strokeStyle = 'rgba(245,166,35,.75)'; g.lineWidth = 1.2; g.beginPath(); g.roundRect(rect.x, rect.y, rect.w, rect.h, 8); g.stroke();
   g.restore();
 }
 

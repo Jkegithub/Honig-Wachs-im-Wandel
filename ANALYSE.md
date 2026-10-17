@@ -57,6 +57,12 @@ Bienen, weil seine Wiese das Volk begrenzt. Das großzügigere Überleben von V1
 - **S5** misst die erste sichtbare Sekunde bei jedem Tempo ab 1× (in der Zeitlupe sind > 5 Ticks/s nicht möglich).
 - Behoben beim Bau: Szenendauer wurde aus den Ereignisdaten gelesen (Bewegung `NaN`, unsichtbar); in der Pause passte
   sich die Kamera nicht an eine geänderte Wabe an; Regen verdrängte die anderen Szenen (jetzt Rotation nach Szenenart).
+- **Szenen per Klick und am Ort:** Klick auf Larve/Puppe → Schlupf-Vorschau an der Zelle (Test: „Zelle #14 · Puppe ·
+  schlüpft in ~0,3 Tagen“); Klick auf Blüte → Heimflug einer echten Sammlerin dieses Felds (Test: #89, 158 Nektar von Raps),
+  sonst als Beispiel gekennzeichnet. Heimflug startet von selbst nur bei Sonne; Regen-Rückzug sofort bei Regenbeginn, auch
+  in der Sperrzeit (Test: 43 Bienen). Szenen auf 2/3 verkleinert, im Hochformat höchstens 200 px breit, Texte eingepasst.
+- **Legende** zeichnet die Zellen wie die Wabe (Ei, Larve als Symbol; Nektar frisch → reifend), statt reiner Farbflächen.
+  Nach beiden Änderungen: Abnahme 9/9, Modellkennung `cb3cb106`.
 
 ### Bewusste Abweichungen (in der App unter „Ausbaustufen“ ausgewiesen)
 
