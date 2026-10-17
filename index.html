@@ -1231,20 +1231,21 @@ function meadowRect(M) {
 function updateCamera(M) {
   if ((M.paused || M.collapsed) && VIEW.cam.s && VIEW.key) return;      // Pause: Bild steht vollständig still
   const e = M.extent, v = VIEW.vertical;
-  const regionW = v ? VIEW.w : VIEW.w * 0.62, top = v ? 112 : 78, bottom = v ? VIEW.h * 0.48 + 6 : 34;
+  const regionW = v ? VIEW.w : VIEW.w * 0.62, top = v ? 112 : 78, bottom = v ? VIEW.h * 0.48 + 6 : 34, avail = VIEW.h - top - bottom;
   const x0 = e.minX - 12, x1 = M.entrance.x + 16, y0 = e.minY - 12, y1 = e.maxY + 12;
-  const target = Math.min((regionW - 24) / (x1 - x0), (VIEW.h - top - bottom) / (y1 - y0), 4.2);
+  // Hochformat: Wabe um 90° gedreht dargestellt (Modell-x nach unten) — das Flugloch liegt unten mittig über der Wiese
+  const target = v ? Math.min((regionW - 24) / (y1 - y0), avail / (x1 - x0), 4.2) : Math.min((regionW - 24) / (x1 - x0), avail / (y1 - y0), 4.2);
   const c = VIEW.cam; if (!c.s) c.s = target;
   c.s = Math.abs(target - c.s) < 0.002 ? target : c.s + (target - c.s) * 0.08;   // einrasten: kein Pixel-Driften in der Pause
-  c.cx = 12 + (regionW - 24 - (x1 - x0) * c.s) / 2 - x0 * c.s;
-  c.cy = top + (VIEW.h - top - bottom) / 2 - (y0 + y1) / 2 * c.s;
+  if (v) { c.cx = VIEW.w / 2 + (y0 + y1) / 2 * c.s; c.cy = top + (avail - (x1 - x0) * c.s) / 2 - x0 * c.s; }
+  else { c.cx = 12 + (regionW - 24 - (x1 - x0) * c.s) / 2 - x0 * c.s; c.cy = top + avail / 2 - (y0 + y1) / 2 * c.s; }
   const key = c.s.toFixed(3) + '|' + VIEW.w + '|' + VIEW.h;
   if (key !== VIEW.key) { VIEW.key = key; M.dirty = true; }
 }
 // [renderer] Welt -> Bildschirm; außen ab dem Flugloch, skaliert auf die Restbreite
 function toScreen(M, x, y, space) {
   const c = VIEW.cam;
-  if (space === 'hive') return [c.cx + x * c.s, c.cy + y * c.s];
+  if (space === 'hive') return VIEW.vertical ? [c.cx - y * c.s, c.cy + x * c.s] : [c.cx + x * c.s, c.cy + y * c.s];
   if (VIEW.vertical) {                                  // Hochformat: Flugloch oben Mitte der Wiese, Entfernung nach unten
     const y0 = Math.round(VIEW.h * 0.52), hh = VIEW.h - y0 - 30;
     const sx = (VIEW.w - 90) / 560, sy = Math.max(0.12, (hh - 70) / 760);   // eigener Maßstab je Achse: Breite voll nutzen
@@ -1257,7 +1258,8 @@ function toScreen(M, x, y, space) {
 // [renderer] Sechseck-Pfad
 function hexPath(g, x, y, r) {
   g.beginPath();
-  for (let i = 0; i < 6; i++) { const a = Math.PI / 3 * i - Math.PI / 6, px = x + r * Math.cos(a), py = y + r * Math.sin(a); i ? g.lineTo(px, py) : g.moveTo(px, py); }
+  const off = VIEW.vertical ? 0 : -Math.PI / 6;        // gedrehte Wabe: Sechsecke mit flacher Oberkante
+  for (let i = 0; i < 6; i++) { const a = Math.PI / 3 * i + off, px = x + r * Math.cos(a), py = y + r * Math.sin(a); i ? g.lineTo(px, py) : g.moveTo(px, py); }
   g.closePath();
 }
 // [renderer] Farbmischung
@@ -1269,7 +1271,8 @@ function tempColor(t) { return t < 35 ? mixCol([79, 179, 217], [245, 166, 35], c
 function drawComb(M, reveal, selected) {
   const g = VIEW.cctx, s = VIEW.cam.s, cells = M.cells;
   g.setTransform(VIEW.dpr, 0, 0, VIEW.dpr, 0, 0); g.clearRect(0, 0, VIEW.w, VIEW.h);
-  const e = M.extent, [x0, y0] = toScreen(M, e.minX - 10, e.minY - 10, 'hive'), [x1, y1] = toScreen(M, M.entrance.x + 4, e.maxY + 10, 'hive');
+  const e = M.extent, pa = toScreen(M, e.minX - 10, e.minY - 10, 'hive'), pb = toScreen(M, M.entrance.x + 4, e.maxY + 10, 'hive');
+  const x0 = Math.min(pa[0], pb[0]), x1 = Math.max(pa[0], pb[0]), y0 = Math.min(pa[1], pb[1]), y1 = Math.max(pa[1], pb[1]);   // Rahmen in beiden Ausrichtungen
   g.fillStyle = 'rgba(10,6,3,.6)'; g.strokeStyle = '#5a3a1c'; g.lineWidth = 3;
   g.beginPath(); g.roundRect(x0, y0, x1 - x0, y1 - y0, 10); g.fill(); g.stroke();
   const r = CFG.HEX * s * 0.93, small = r < 4.5, n = Math.floor(cells.length * reveal);
@@ -1300,11 +1303,13 @@ function drawComb(M, reveal, selected) {
     if (M.layers.heat) { hexPath(g, x, y, rr); g.globalAlpha = 0.55; g.fillStyle = tempColor(c.temp); g.fill(); g.globalAlpha = 1; }
   }
   const [ex, ey] = toScreen(M, M.entrance.x, M.entrance.y, 'hive');
-  g.fillStyle = '#0b0603'; g.fillRect(ex - 5, ey - 10, 12, 20); g.strokeStyle = '#e9c98b'; g.lineWidth = 1.5; g.strokeRect(ex - 5, ey - 10, 12, 20);
-  g.font = '10px SourceCode, monospace'; g.fillStyle = '#c6b38b'; g.textAlign = 'center'; g.fillText('Einflug', ex + 1, ey + 26);
-  const tw = 28, tf = clamp(M.water / Math.max(1, M.bees.length * 10), 0, 1);   // Balken gegen den Wasserpuffer (10 je Biene)
-  g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(ex - tw / 2, ey + 32, tw, 5); g.fillStyle = RES_COL.water; g.fillRect(ex - tw / 2, ey + 32, tw * tf, 5);
-  g.fillStyle = '#9fd3ea'; g.fillText('Wasser ' + fmt(M.water), ex + 1, ey + 48); g.textAlign = 'left';
+  const v = VIEW.vertical, sw = v ? 20 : 12, sh = v ? 12 : 20;            // Hochformat: waagerechter Schlitz unten mittig
+  g.fillStyle = '#0b0603'; g.fillRect(ex - sw / 2, ey - sh / 2, sw, sh); g.strokeStyle = '#e9c98b'; g.lineWidth = 1.5; g.strokeRect(ex - sw / 2, ey - sh / 2, sw, sh);
+  const lx = v ? ex + 18 : ex + 1, ly = v ? ey - 6 : ey + 26;              // Beschriftung neben (Hochformat) bzw. unter dem Flugloch
+  g.font = '10px SourceCode, monospace'; g.fillStyle = '#c6b38b'; g.textAlign = v ? 'left' : 'center'; g.fillText('Einflug', lx, ly);
+  const tw = 28, tf = clamp(M.water / Math.max(1, M.bees.length * 10), 0, 1), bx = v ? lx : ex - tw / 2;   // Balken gegen den Wasserpuffer (10 je Biene)
+  g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(bx, ly + 6, tw, 5); g.fillStyle = RES_COL.water; g.fillRect(bx, ly + 6, tw * tf, 5);
+  g.fillStyle = '#9fd3ea'; g.fillText('Wasser ' + fmt(M.water), lx, ly + 22); g.textAlign = 'left';
   M.dirty = false;
 }
 
@@ -1382,7 +1387,8 @@ function drawBees(g, M, a, vt, reveal) {
   g.globalAlpha = clamp((reveal - 0.7) / 0.3, 0, 1);
   for (const b of M.bees) {
     const [x, y] = beePos(M, b, a), sz = b.space === 'out' ? 2.4 : k;
-    const ang = Math.atan2(b.y - b.py, b.x - b.px) || b.wob;
+    const p0 = b.pspace === b.space ? toScreen(M, b.px, b.py, b.space) : [x, y], p1 = toScreen(M, b.x, b.y, b.space);
+    const ang = Math.atan2(p1[1] - p0[1], p1[0] - p0[0]) || b.wob;      // Flugrichtung aus Bildschirmkoordinaten (stimmt auch gedreht)
     g.save(); g.translate(x, y); g.rotate(ang);
     const flap = Math.sin(vt / 40 + b.wob) * 0.5 + 0.5;
     g.fillStyle = 'rgba(240,240,255,.45)'; g.beginPath(); g.ellipse(-sz * 0.2, -sz * 0.9, sz * 0.9, sz * (0.35 + 0.25 * flap), -0.4, 0, 7); g.fill();
@@ -1412,7 +1418,7 @@ function renderFrame(M, alpha, visualTime, selected) {
 
 // [renderer] Klick -> Zelle (Bildschirm -> Wabenkoordinate -> axial)
 function cellAtScreen(M, px, py) {
-  const x = (px - VIEW.cam.cx) / VIEW.cam.s, y = (py - VIEW.cam.cy) / VIEW.cam.s;
+  const c = VIEW.cam, x = VIEW.vertical ? (py - c.cy) / c.s : (px - c.cx) / c.s, y = VIEW.vertical ? -(px - c.cx) / c.s : (py - c.cy) / c.s;   // Umkehr der Drehung
   const qf = (Math.sqrt(3) / 3 * x - y / 3) / CFG.HEX, rf = (2 / 3 * y) / CFG.HEX, sf = -qf - rf;
   let q = Math.round(qf), r = Math.round(rf); const s = Math.round(sf);
   const dq = Math.abs(q - qf), dr = Math.abs(r - rf), ds = Math.abs(s - sf);
