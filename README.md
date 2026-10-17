@@ -7,7 +7,10 @@ es gibt keine Frameworks und keine externen Dateien. Die Oberfläche der Simulat
 
 ## Starten
 
-[`index.html`](index.html) herunterladen und per Doppelklick im Browser öffnen. Es wird kein Server gebraucht.
+**Im Browser:** <https://jkegithub.github.io/Honig-Wachs-im-Wandel/>
+
+**Offline:** [`index.html`](index.html) herunterladen (auf GitHub „Download raw file“) und per Doppelklick
+im Browser öffnen. Es wird kein Server gebraucht.
 Die Simulation startet in ¼×-Zeitlupe. Ein Klick auf „¼× Zeitlupe“ schaltet auf Normaltempo
 (1 Sim-Tag pro Sekunde), „2× Tempo“ verdoppelt.
 
@@ -34,6 +37,10 @@ Die Simulation startet in ¼×-Zeitlupe. Ein Klick auf „¼× Zeitlupe“ schal
 
 [`bienenstock-simulation`](https://github.com/Jkegithub/bienenstock-simulation) ist die erste Variante,
 gebaut nach Prompt #1. Aus ihren Befunden entstand Prompt #24, auf dem diese zweite Variante beruht.
+
+## Lizenz
+
+Code: [MIT](LICENSE). Schrift: SIL Open Font License 1.1 (siehe unten).
 
 ## Schrift
 
