@@ -1,0 +1,10 @@
+# Honig & Wachs im Wandel — Single-File-Web-App (HTML/CSS/JS)
+node_modules/
+dist/
+*.log
+# Aufnahmen und Videos bleiben draussen
+*.mp4
+*.webm
+*.mov
+# lokale Claude-Einstellungen
+.claude/settings.local.json
