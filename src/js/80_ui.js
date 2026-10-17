@@ -52,6 +52,12 @@ function playFlightFrom(p) {
     : { kind: 'nectar', amount: Math.min(M.loadFor('nectar'), Math.floor(p.nectar)), patch: p.name, beeId: '—', hue: p.hue, example: true };
   UI.scene = { type: 'flight', data, t: 0, dur: 5.5 }; UI.lastShown.flight = performance.now();
 }
+// [ui] Klick auf die Tränke: Wasserholerinnen beim Saugen und beim Abflug; Zahl aus dem Modell, sonst Beispiel
+function playDrink() {
+  const M = UI.M; if (M.layers.scenes === false) return;
+  const drinking = M.bees.filter(b => b.task === 'gather' && b.want === 'water').length;
+  UI.scene = { type: 'drink', data: { drinking, level: Math.round(M.pond.water / Math.max(1, M.pond.cap) * 100), example: !drinking }, t: 0, dur: 6 };
+}
 // [ui] Klick auf Larve oder Puppe: Schlupf-Vorschau mit der verbleibenden Entwicklungszeit dieser Zelle
 function playHatchPreview(c) {
   const M = UI.M; if (M.layers.scenes === false || (c.state !== 'larva' && c.state !== 'pupa')) return;
@@ -284,7 +290,7 @@ function bootUI() {
   $('world').addEventListener('click', e => {
     const r = $('world').getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
     if (UI.scene) { const s = sceneRect(UI.M, UI.scene); if (px >= s.x && px <= s.x + s.w && py >= s.y && py <= s.y + s.h) { UI.scene = null; UI.nextSceneAt = performance.now() + 8000; return; } }   // Klick schließt die Szene
-    const p = patchAtScreen(UI.M, px, py); if (p) { playFlightFrom(p); return; }
+    const p = patchAtScreen(UI.M, px, py); if (p) { p === UI.M.pond ? playDrink() : playFlightFrom(p); return; }
     const id = cellAtScreen(UI.M, px, py);
     if (id !== null) { UI.selected = id; renderInspector(); playHatchPreview(UI.M.cells[id]); }
   });

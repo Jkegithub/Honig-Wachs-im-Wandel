@@ -31,6 +31,8 @@ Es wird kein Server gebraucht.
   - **Schlupf** einer jungen Biene — von selbst beim echten Schlupf, oder per **Klick auf eine Larve/Puppe** als Vorschau
     („schlüpft in ~x Tagen“).
   - **Regen-Rückzug** — startet **sofort** bei einsetzendem Regen und unterbricht eine laufende Szene.
+  - **An der Tränke** — per **Klick auf die Tränke**: zwei Bienen saugen am Uferstein (Wellenringe am Rüssel), eine dritte
+    erhebt sich mit dem Wassertropfen zum Abflug; dazu die Zahl der gerade saugenden Wasserholerinnen und der Füllstand.
 
   Die 3D-Darstellung ist selbst geschrieben (Projektion, Licht, Tiefensortierung), ohne Bibliothek. Schalter „3D-Szenen“,
   Button „▶ 3D-Szene“ zum Abspielen auf Wunsch; Klick auf die Szene schließt sie. Bei „Bewegung reduzieren“ im

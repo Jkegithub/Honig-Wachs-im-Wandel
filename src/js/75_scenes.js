@@ -98,6 +98,8 @@ const BEE3D = (() => {
     wing: meshDisc(0.62, 0.22, 14, [235, 240, 255], { alpha: 0.42 }),
     pollen: meshEllipsoid(0.13, 0.13, 0.13, 8, 6, () => [255, 93, 31]),
     nectar: meshEllipsoid(0.12, 0.12, 0.12, 10, 8, () => [255, 196, 60], { alpha: 0.85, glow: true }),
+    water: meshEllipsoid(0.12, 0.12, 0.12, 10, 8, () => [150, 215, 245], { alpha: 0.8, glow: true }),
+    tongue: meshEllipsoid(0.2, 0.035, 0.035, 6, 4, () => [70, 40, 20]),
   };
 })();
 
@@ -113,6 +115,8 @@ function emitBee(out, pose, flap, opt = {}) {
     if (opt.pollen) emitMesh(out, BEE3D.pollen, at([-0.12, -0.36, 0.22 * sd], [0, 0, 0]));
   }
   if (opt.nectar) emitMesh(out, BEE3D.nectar, at([0.78, -0.12, 0], [0, 0, 0]));
+  if (opt.water) emitMesh(out, BEE3D.water, at([0.78, -0.14, 0], [0, 0, 0]));
+  if (opt.tongue) emitMesh(out, BEE3D.tongue, at([0.86, -0.16, 0], [0, 0, -0.5]));   // Rüssel beim Saugen
 }
 // [scenes3d] Blüte: Blütenblätter im Kranz, Mitte, Stiel; Farbton aus dem Blütenfeld
 function emitFlower(out, pos, hue, s, sway) {
@@ -142,6 +146,7 @@ function sceneRect(M, sc) {
     const c = M.cells[sc.data.cellId]; anchor = toScreen(M, c.x, c.y, 'hive'); region = combRect(M);
     if (region.w < w + 12 || region.h < h + 12) region = { x0: 0, y0: 0, w: VIEW.w, h: VIEW.h };
   } else if (sc && sc.type === 'flight') { const p = M.patches.find(q => q.name === sc.data.patch); if (p) anchor = toScreen(M, p.u, p.v, 'out'); }
+  else if (sc && sc.type === 'drink') anchor = toScreen(M, M.pond.u, M.pond.v, 'out');
   else if (sc && sc.type === 'rain') anchor = [anchor[0] + (VIEW.vertical ? 0 : 60), anchor[1] + (VIEW.vertical ? 30 : 0)];
   const x = clamp(anchor[0] - w / 2, region.x0 + 6, region.x0 + region.w - w - 6);
   let y = anchor[1] - h - 18;                                            // über dem Anker, damit er sichtbar bleibt
@@ -214,6 +219,37 @@ function sceneRain(g, rect, t, d, dur) {
   return ['Regen — Rückzug in den Stock', d.returning + ' Sammlerinnen kehren heim · Ausflüge ruhen'];
 }
 
+// [scenes3d] Szene 4: An der Tränke saugen zwei Bienen am Uferstein, eine dritte erhebt sich mit dem Wassertropfen
+function sceneDrink(g, rect, t, d, dur) {
+  const sky = g.createLinearGradient(0, rect.y, 0, rect.y + rect.h); sky.addColorStop(0, '#6a5420'); sky.addColorStop(0.5, '#4d5a22'); sky.addColorStop(1, '#2c3a18');
+  g.fillStyle = sky; g.fillRect(rect.x, rect.y, rect.w, rect.h);
+  const faces = [], k = clamp(t / dur, 0, 1), R = 1.9, rim = a => [Math.cos(a) * R, 0.18, Math.sin(a) * R];
+  const cam = { pos: [0.3, 3.1, 5.4], target: [0, 0.3, 0.2], fov: 0.8 }, flat = [];
+  emitMesh(flat, meshDisc(4.6, 4.6, 24, [86, 120, 48], { glow: true }), [{ pos: [0, -0.06, 0] }]); draw3D(g, flat, cam, rect);   // Wiese, eigene Ebene
+  flat.length = 0; emitMesh(flat, meshDisc(R, R, 28, [70, 150, 196], { glow: true }), [{ pos: [0, 0, 0] }]); draw3D(g, flat, cam, rect);   // Wasser darüber
+  const stone = meshEllipsoid(0.42, 0.2, 0.3, 8, 5, () => [128, 120, 104]);
+  for (let i = 0; i < 11; i++) { const a = i / 11 * Math.PI * 2 + 0.2; emitMesh(faces, stone, [{ pos: [Math.cos(a) * (R + 0.12), 0, Math.sin(a) * (R + 0.12)], rot: [0, -a, 0] }]); }
+  const drinkers = [0.45, -0.75];
+  drinkers.forEach((a, i) => {                                         // Kopf zur Wasserfläche, Hinterleib pumpt leicht
+    const pump = 0.03 * Math.sin(t * 7 + i * 2);
+    emitBee(faces, { pos: V3.add(rim(a), [0, 0.12 + pump, 0]), rot: [0, Math.PI - a, -0.38], s: 0.55 }, 0.12, { tongue: true });
+  });
+  const a3 = 2.75, rise = clamp((k - 0.18) / 0.72, 0, 1), e = rise * rise * (3 - 2 * rise);   // Abflug: erst Flügelschwirren, dann schräg nach hinten links steigen
+  const out = V3.norm([-1, 0, -0.8]), p3 = V3.add(V3.add(rim(a3), [0, 0.12 + e * 1.6, 0]), V3.mul(out, e * 1.4));
+  emitBee(faces, { pos: p3, rot: [0.1 * Math.sin(t * 6), Math.atan2(-out[2], out[0]), 0.05 + 0.3 * e], s: 0.55 }, k > 0.08 ? 0.35 + 0.75 * Math.sin(t * 46) : 0.15, { water: true });
+  const pr = draw3D(g, faces, cam, rect);
+  g.lineWidth = 1;
+  drinkers.forEach((a, i) => {                                         // Wellenringe am Rüssel
+    const c = [Math.cos(a) * (R - 0.55), 0.01, Math.sin(a) * (R - 0.55)];
+    for (let r = 0; r < 2; r++) {
+      const ph = ((t * 0.7 + r * 0.5 + i * 0.3) % 1), rad = 0.1 + ph * 0.6; g.strokeStyle = 'rgba(210,240,255,' + (0.55 * (1 - ph)).toFixed(2) + ')'; g.beginPath();
+      for (let s = 0; s <= 20; s++) { const q = pr.project([c[0] + Math.cos(s / 20 * 6.283) * rad, 0.01, c[2] + Math.sin(s / 20 * 6.283) * rad]); if (q) s ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); }
+      g.stroke();
+    }
+  });
+  return ['An der Tränke', (d.example ? 'Beispiel · ' : d.drinking + ' saugen gerade · ') + 'Füllstand ' + d.level + ' %'];
+}
+
 // [scenes3d] Bild-im-Bild zeichnen: Rahmen, Szene, Titel, Zeitleiste; Ein-/Ausblenden
 function drawScene3D(g, M, sc) {
   if (!sc) return;
@@ -221,7 +257,7 @@ function drawScene3D(g, M, sc) {
   g.save(); g.globalAlpha = fade;
   g.fillStyle = 'rgba(0,0,0,.5)'; g.beginPath(); g.roundRect(rect.x + 3, rect.y + 4, rect.w, rect.h, 8); g.fill();
   g.beginPath(); g.roundRect(rect.x, rect.y, rect.w, rect.h, 8); g.save(); g.clip();
-  const fn = { flight: sceneFlight, hatch: sceneHatch, rain: sceneRain }[sc.type];
+  const fn = { flight: sceneFlight, hatch: sceneHatch, rain: sceneRain, drink: sceneDrink }[sc.type];
   const [title, info] = fn(g, rect, sc.t, sc.data, sc.dur);
   const band = 38, grad = g.createLinearGradient(0, rect.y + rect.h - band, 0, rect.y + rect.h); grad.addColorStop(0, 'rgba(10,6,3,0)'); grad.addColorStop(1, 'rgba(10,6,3,.88)');
   g.fillStyle = grad; g.fillRect(rect.x, rect.y + rect.h - band, rect.w, band);

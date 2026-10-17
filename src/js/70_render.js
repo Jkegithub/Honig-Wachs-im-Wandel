@@ -216,10 +216,10 @@ function renderFrame(M, alpha, visualTime, selected) {
   drawBees(g, M, alpha, visualTime, reveal);
 }
 
-// [renderer] Klick -> Blütenfeld (Trefferkreis um die Blüten)
+// [renderer] Klick -> Blütenfeld oder Tränke (Trefferkreis)
 function patchAtScreen(M, px, py) {
   const o = toScreen(M, 0, 0, 'out'), o1 = toScreen(M, 1, 0, 'out'), so = Math.hypot(o1[0] - o[0], o1[1] - o[1]);
-  for (const p of M.patches) { const [x, y] = toScreen(M, p.u, p.v, 'out'); if (Math.hypot(px - x, py - y) < Math.max(22, 50 * so)) return p; }
+  for (const p of [...M.patches, M.pond]) { const [x, y] = toScreen(M, p.u, p.v, 'out'); if (Math.hypot(px - x, py - y) < Math.max(22, 50 * so)) return p; }
   return null;
 }
 // [renderer] Klick -> Zelle (Bildschirm -> Wabenkoordinate -> axial)

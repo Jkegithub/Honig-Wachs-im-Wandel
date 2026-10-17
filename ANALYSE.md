@@ -61,6 +61,9 @@ Bienen, weil seine Wiese das Volk begrenzt. Das großzügigere Überleben von V1
   schlüpft in ~0,3 Tagen“); Klick auf Blüte → Heimflug einer echten Sammlerin dieses Felds (Test: #89, 158 Nektar von Raps),
   sonst als Beispiel gekennzeichnet. Heimflug startet von selbst nur bei Sonne; Regen-Rückzug sofort bei Regenbeginn, auch
   in der Sperrzeit (Test: 43 Bienen). Szenen auf 2/3 verkleinert, im Hochformat höchstens 200 px breit, Texte eingepasst.
+- **Tränken-Szene** (nur per Klick, nicht in der Automatik): zwei saugende Bienen, eine im Abflug; Wiese und Wasser als
+  eigene Zeichenebenen, damit die Tiefensortierung die Wasserfläche nicht zerschneidet. Test: „2 saugen gerade · Füllstand
+  100 %“ aus dem Modell, 5,4–5,7 ms je Szenenbild, im Hochformat 200 × 124 px an der Tränke.
 - **Legende** zeichnet die Zellen wie die Wabe (Ei, Larve als Symbol; Nektar frisch → reifend), statt reiner Farbflächen.
   Nach beiden Änderungen: Abnahme 9/9, Modellkennung `cb3cb106`.
 
