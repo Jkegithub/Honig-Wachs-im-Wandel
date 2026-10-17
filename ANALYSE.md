@@ -48,6 +48,16 @@ Bienen, weil seine Wiese das Volk begrenzt. Das großzügigere Überleben von V1
 - Startverhungern bei 40 %: Flugkosten aus dem Stock während langer Suche → Sammlerinnen trinken an der Blüte.
 - Pause: Kamera driftete subpixelweise → in der Pause eingefroren.
 
+### Nachträge nach der Abnahme (nur Darstellung und Bedienung, Modellkennung unverändert `cb3cb106`)
+
+- **Hochformat:** Wabe um 90° gedreht dargestellt; das Flugloch liegt unten mittig über der Wiese. Klickzuordnung 205/205.
+- **3D-Vignetten** (Modul `scenes3d`, im selben 2D-Canvas): Heimflug, Schlupf, Regen-Rückzug. Ausgelöst durch beobachtete
+  Modellereignisse, ohne Eingriff ins Modell. Gemessen: 0,7–4,6 ms je Szenenbild; im Lauf selbst gestartet z. B.
+  „Heimflug · Sammlerin #141 · 158 Nektar von Linde“ und „Schlupf · Zelle #26 · Biene #222“. S6 prüft 9 Aktionen plus den Szenen-Button.
+- **S5** misst die erste sichtbare Sekunde bei jedem Tempo ab 1× (in der Zeitlupe sind > 5 Ticks/s nicht möglich).
+- Behoben beim Bau: Szenendauer wurde aus den Ereignisdaten gelesen (Bewegung `NaN`, unsichtbar); in der Pause passte
+  sich die Kamera nicht an eine geänderte Wabe an; Regen verdrängte die anderen Szenen (jetzt Rotation nach Szenenart).
+
 ### Bewusste Abweichungen (in der App unter „Ausbaustufen“ ausgewiesen)
 
 - Königin implizit, Wasser in einem Tank statt in Zellen.

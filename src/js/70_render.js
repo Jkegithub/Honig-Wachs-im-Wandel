@@ -27,14 +27,16 @@ function meadowRect(M) {
 }
 // [renderer] Wabenkamera: Gitter + Flugloch in den linken Bereich, weich nachgeführt
 function updateCamera(M) {
-  if ((M.paused || M.collapsed) && VIEW.cam.s && VIEW.key) return;      // Pause: Bild steht vollständig still
+  const ext = M.cells.length + '|' + VIEW.w + '|' + VIEW.h;
+  if ((M.paused || M.collapsed) && VIEW.cam.s && VIEW.key && VIEW.camExt === ext) return;   // Pause: Bild steht still, solange sich die Wabe nicht ändert
+  const snap = (M.paused || M.collapsed) || VIEW.camExt === undefined; VIEW.camExt = ext;
   const e = M.extent, v = VIEW.vertical;
   const regionW = v ? VIEW.w : VIEW.w * 0.62, top = v ? 112 : 78, bottom = v ? VIEW.h * 0.48 + 6 : 34, avail = VIEW.h - top - bottom;
   const x0 = e.minX - 12, x1 = M.entrance.x + 16, y0 = e.minY - 12, y1 = e.maxY + 12;
   // Hochformat: Wabe um 90° gedreht dargestellt (Modell-x nach unten) — das Flugloch liegt unten mittig über der Wiese
   const target = v ? Math.min((regionW - 24) / (y1 - y0), avail / (x1 - x0), 4.2) : Math.min((regionW - 24) / (x1 - x0), avail / (y1 - y0), 4.2);
   const c = VIEW.cam; if (!c.s) c.s = target;
-  c.s = Math.abs(target - c.s) < 0.002 ? target : c.s + (target - c.s) * 0.08;   // einrasten: kein Pixel-Driften in der Pause
+  c.s = snap || Math.abs(target - c.s) < 0.002 ? target : c.s + (target - c.s) * 0.08;   // einrasten; in der Pause sofort passend
   if (v) { c.cx = VIEW.w / 2 + (y0 + y1) / 2 * c.s; c.cy = top + (avail - (x1 - x0) * c.s) / 2 - x0 * c.s; }
   else { c.cx = 12 + (regionW - 24 - (x1 - x0) * c.s) / 2 - x0 * c.s; c.cy = top + avail / 2 - (y0 + y1) / 2 * c.s; }
   const key = c.s.toFixed(3) + '|' + VIEW.w + '|' + VIEW.h;

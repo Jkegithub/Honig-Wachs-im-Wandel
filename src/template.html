@@ -4,7 +4,7 @@
   WACHS & WANDEL — Bienenstock-Simulation, Version 3 (Symbiose aus V1 und V2)
   Eine Datei: HTML + CSS + JS inline, keine externen Dateien, läuft per Doppelklick aus file://
 ==========================================================================================
-  MODULPLAN (9 Module; jede Funktion trägt ihren Modulnamen als Kommentar)
+  MODULPLAN (10 Module; jede Funktion trägt ihren Modulnamen als Kommentar)
   core          Konstanten, seedgebundener Zufall, Hilfsfunktionen. Besitzt: CFG, Random.
   hexGrid       Spiralgitter mit Nachbarn, Zonen (Brutnest, Pollenkranz, Lager), Anbau,
                 einzige Zustandsänderung setState() mit Honig-Wache. Besitzt: Zellen, Indizes.
@@ -17,6 +17,8 @@
   diagnostics   Tick-Ablauf, Verlauf, Kollapsbericht, Invarianten S1–S9, Fehlerinjektion,
                 Abnahme, Modellkennung, Testschnittstelle window.BeeLab.
   renderer      Ein Canvas 2D: Wabe (Offscreen-Cache), Wiese, Wetter, Bienen, Layer.
+  scenes3d      3D-Vignetten im selben Canvas (eigene Projektion, Licht, Tiefensortierung):
+                Heimflug, Schlupf, Regen-Rückzug — ausgelöst durch echte Modellereignisse.
   ui            Panels, Steuerung, Inspektor, Berichte, Tick-Schleife.
 
   Build: index.html entsteht aus src/template.html + src/js/*.js + fonts/ (build.ps1).
@@ -85,6 +87,7 @@ canvas#world { position: absolute; inset: 0; width: 100%; height: 100%; display:
 .legend i { width: 12px; height: 12px; display: inline-block; clip-path: polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%); }
 .layers { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 6px 2px 0; color: var(--muted); }
 .layers input, input[type=range] { accent-color: var(--honey); }
+.layers { align-items: center; } .layers button { padding: 4px 10px; }
 .bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 18px; }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; min-width: 0; }
 aside { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
@@ -158,7 +161,7 @@ dialog table { border-collapse: collapse; font-size: 12px; } dialog td, dialog t
       <div class="scene-foot"><span>BRUTNEST → POLLENKRANZ → HONIGSPEICHER</span><span id="capacity">80 / 1.200 Zellen</span></div>
     </div>
     <div class="legend" id="legend"></div>
-    <div class="layers"><label><input id="paths" type="checkbox" checked> Bienenpfade</label><label><input id="heat" type="checkbox"> Temperaturzonen</label><label><input id="flows" type="checkbox" checked> Ressourcenflüsse</label></div>
+    <div class="layers"><label><input id="paths" type="checkbox" checked> Bienenpfade</label><label><input id="heat" type="checkbox"> Temperaturzonen</label><label><input id="flows" type="checkbox" checked> Ressourcenflüsse</label><label><input id="scenes" type="checkbox" checked> 3D-Szenen</label><button id="sceneBtn" title="Nächste 3D-Szene abspielen (Heimflug, Schlupf, Regen)">▶ 3D-Szene</button></div>
     <div class="bottom">
       <div class="panel">
         <h2>Systemprüfung</h2>

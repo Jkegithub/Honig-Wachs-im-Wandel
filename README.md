@@ -24,6 +24,11 @@ Es wird kein Server gebraucht.
   Bienen, Wetter und Krankheitsfälle. Gleicher Seed und gleiche Regler ergeben einen identischen Verlauf. Einen anderen
   Seed eintragen und auf **Start** klicken; **↻ Neuer Seed** würfelt einen zufälligen.
 - **Zelle anklicken:** Der Inspektor zeigt Zustand, Füllgrad, Wassergehalt, Alter, Temperatur und die zuständige Biene.
+- **3D-Szenen:** Kurze 3D-Vignetten im selben Bild, ausgelöst durch echte Ereignisse der Simulation:
+  **Heimflug** einer Sammlerin mit Nektar oder Pollen (mit ihrer Nummer, Menge und Blütenfeld), **Schlupf** einer jungen
+  Biene aus ihrer Zelle und **Regen-Rückzug** in den Stock. Die 3D-Darstellung ist selbst geschrieben (Projektion, Licht,
+  Tiefensortierung), ohne Bibliothek. Schalter „3D-Szenen“, Button „▶ 3D-Szene“ zum Abspielen auf Wunsch; Klick auf die
+  Szene schließt sie. Bei „Bewegung reduzieren“ im Betriebssystem sind sie aus.
 
 ## Was Version 3 auszeichnet
 
@@ -50,7 +55,7 @@ Details, Vergleichstabelle V1/V2/V3 und alle Messwerte: [`ANALYSE.md`](ANALYSE.m
 | `src/template.html` | Seite, CSS, Modulplan |
 | `src/js/10_core.js` | Konstanten, Zufall, Gitter, Zonen, **Design decisions und Mengengerüst** |
 | `src/js/20_colony.js` … `60_check.js` | Modell (Klasse `Colony`): Vorräte, Brut, Bienen, Umwelt, Prüfung und Abnahme |
-| `src/js/70_render.js`, `80_ui.js` | Darstellung (ein Canvas) und Bedienung |
+| `src/js/70_render.js`, `75_scenes.js`, `80_ui.js` | Darstellung (ein Canvas), 3D-Vignetten und Bedienung |
 | `src/acceptance.json` | gespeicherte Abnahme, gebunden an die Modellkennung (jede Modelländerung macht sie ungültig) |
 | `fonts/` | eingebettete Schriften mit Lizenztexten |
 | `archive/rev4.html` | V2 Revision 4 zum Vergleich (auch als Git-Tag `v2-rev4`) |

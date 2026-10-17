@@ -1,19 +1,59 @@
 // [ui] Zustand der Oberfläche
-const UI = { M: null, selected: null, lastUi: 0, acc: 0, last: 0, vt: 0, frames: 0, win: null, userTempo: false, bound: new Set(), reportIdx: null, seenReports: 0, busy: false, saved: null };
+const UI = { M: null, selected: null, lastUi: 0, acc: 0, last: 0, vt: 0, frames: 0, win: null, userTempo: false, bound: new Set(), reportIdx: null, seenReports: 0, busy: false, saved: null,
+  scene: null, nextSceneAt: 0, homeSeen: new Set(), lastRain: false, lastBorn: 0, lastNextId: 0, lastData: {}, sceneCycle: 0, pending: {}, lastShown: {} };
+const REDUCED_MOTION = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+const SCENE_TYPES = ['flight', 'hatch', 'rain'];
+const SCENE_DEMO = { flight: { kind: 'nectar', amount: 162, patch: 'Raps', beeId: '—', hue: 55 }, hatch: { cellId: '—', beeId: '—' }, rain: { returning: 5 } };
 // [ui] DOM-Kurzgriff
 const $ = id => document.getElementById(id);
 // [ui] Aktionen der Buttons und Layer (auch für die Wirkungsprüfung S6 auf Wegwerfmodellen)
 const ACTIONS = {
   pause: m => { m.paused = !m.paused; }, slow: m => { m.speed = 0.25; }, normal: m => { m.speed = 1; }, speed: m => { m.speed = 2; },
   stress: m => { m.startStress(); }, paths: m => { m.layers.paths = !m.layers.paths; }, heat: m => { m.layers.heat = !m.layers.heat; m.dirty = true; }, flows: m => { m.layers.flows = !m.layers.flows; },
+  scenes: m => { m.layers.scenes = m.layers.scenes === false; },
 };
+
+// [ui] Ereignis für eine 3D-Szene vormerken (die Auswahl trifft pickScene)
+function startScene(type, data) { UI.lastData[type] = data; UI.pending[type] = { data, at: performance.now() }; }
+// [ui] nach der Pause zwischen Szenen: frisches Ereignis der am längsten nicht gezeigten Szenenart abspielen
+function pickScene(now) {
+  if (UI.scene || now < UI.nextSceneAt || UI.M.layers.scenes === false) return;
+  const fresh = SCENE_TYPES.filter(t => UI.pending[t] && now - UI.pending[t].at < 8000);
+  if (!fresh.length) return;
+  fresh.sort((a, b) => (UI.lastShown[a] || 0) - (UI.lastShown[b] || 0));
+  const t = fresh[0]; UI.scene = { type: t, data: UI.pending[t].data, t: 0, dur: 5.5 }; UI.lastShown[t] = now; delete UI.pending[t];
+}
+// [ui] echte Modellereignisse beobachten (ohne Eingriff ins Modell): Heimflug mit Last, Schlupf, Regenbeginn
+function detectSceneEvents(M) {
+  for (const b of M.bees) {
+    if (b.task === 'home' && b.load.amount && (b.load.kind === 'nectar' || b.load.kind === 'pollen') && !UI.homeSeen.has(b.id)) {
+      UI.homeSeen.add(b.id);
+      const p = M.patches[b.src];
+      startScene('flight', { kind: b.load.kind, amount: b.load.amount, patch: p ? p.name : 'Feld', beeId: b.id, hue: p ? p.hue : 55 });
+    } else if (b.task !== 'home') UI.homeSeen.delete(b.id);
+  }
+  if (M.born > UI.lastBorn) {
+    const nb = M.bees.find(b => b.id >= UI.lastNextId && b.age <= 2);
+    if (nb) startScene('hatch', { cellId: modelCellAt(M, nb.x, nb.y) ?? '—', beeId: nb.id });
+    UI.lastBorn = M.born; UI.lastNextId = M.nextId;
+  }
+  if (M.weather.rain && !UI.lastRain) startScene('rain', { returning: M.bees.filter(b => b.task === 'out' || b.task === 'gather' || b.task === 'home').length });
+  UI.lastRain = M.weather.rain;
+}
+// [ui] Button: nächste Szene mit den zuletzt beobachteten Daten (sonst Beispieldaten) abspielen
+function playNextScene() {
+  const type = SCENE_TYPES[UI.sceneCycle++ % SCENE_TYPES.length];
+  UI.scene = { type, data: UI.lastData[type] || SCENE_DEMO[type], t: 0, dur: 5.5 };
+}
 
 // [ui] neues Modell anlegen und anzeigen
 function mountModel(seed, params) {
   const keepSpeed = UI.M ? UI.M.speed : 1, keepLayers = UI.M ? { ...UI.M.layers } : null;
   UI.M = new Colony(seed, params); UI.M.uiBound = true;
-  UI.M.speed = keepSpeed; if (keepLayers) UI.M.layers = keepLayers;
+  UI.M.speed = keepSpeed; if (keepLayers) UI.M.layers = keepLayers; else UI.M.layers.scenes = !REDUCED_MOTION;
+  VIEW.camExt = undefined;                              // neue Wabe: Kamera sofort neu einpassen
   UI.selected = null; UI.acc = 0; UI.win = null; UI.seenReports = 0; UI.reportIdx = null; UI.vt = 0;
+  UI.scene = null; UI.homeSeen.clear(); UI.pending = {}; UI.lastRain = UI.M.weather.rain; UI.lastBorn = UI.M.born; UI.lastNextId = UI.M.nextId; UI.nextSceneAt = performance.now() + 4000;
   UI.M.uiAudit = uiProbe();
   $('seed').value = UI.M.seed; $('seed').setCustomValidity('');
   updateUI(true);
@@ -31,7 +71,7 @@ function uiProbe() {
     const before = JSON.stringify([m.paused, m.speed, !!m.stress, m.layers]); ACTIONS[k](m);
     if (before === JSON.stringify([m.paused, m.speed, !!m.stress, m.layers]) || !UI.bound.has(k)) fail.push(k);
   }
-  for (const k of ['reset', 'replay', 'reports', 'closeReport', 'acceptance']) if (!UI.bound.has(k)) fail.push(k);
+  for (const k of ['reset', 'replay', 'reports', 'closeReport', 'acceptance', 'sceneBtn']) if (!UI.bound.has(k)) fail.push(k);
   return { pass: !fail.length, detail: fail.length ? 'ohne Wirkung/Bindung: ' + fail.join(', ') : '4 Regler + ' + Object.keys(ACTIONS).length + ' Aktionen wirken messbar; Seed, Reset, Berichte, Abnahme gebunden' };
 }
 
@@ -43,6 +83,7 @@ function syncControls() {
   const M = UI.M;
   for (const k of Object.keys(DEFAULTS)) { $(k).value = M.params[k]; $(k + 'Out').textContent = M.params[k] + (k === 'colony' ? '' : ' %'); $(k).disabled = !!M.stress && k !== 'colony'; }
   for (const k of ['paths', 'heat', 'flows']) $(k).checked = M.layers[k];
+  $('scenes').checked = M.layers.scenes !== false; $('sceneBtn').disabled = M.layers.scenes === false;
   $('pause').textContent = M.paused ? '▶ Weiter' : 'Ⅱ Pause'; $('pause').setAttribute('aria-pressed', String(M.paused)); $('pause').disabled = M.collapsed || UI.busy;
   for (const [id, v] of [['slow', 0.25], ['normal', 1], ['speed', 2]]) { $(id).setAttribute('aria-pressed', String(M.speed === v)); $(id).disabled = UI.busy; }
   $('stress').disabled = !!M.stress || M.collapsed || UI.busy; $('reports').disabled = !M.reports.length;
@@ -185,17 +226,22 @@ function frame(time) {
     UI.vt += dt * M.speed * 1000; UI.acc += dt * CFG.TPS * M.speed;
     let n = 0; while (UI.acc >= 1 && n++ < 8) { M.step(); UI.acc -= 1; if (M.tick % 20 === 0) updateUI(true); }
     if (n >= 8) UI.acc = 0;
-    if (!M.cadence && M.speed === 1) {
-      if (!UI.win) UI.win = { time, tick: M.tick, frames: UI.frames };
+    if (UI.win && UI.win.speed !== M.speed) UI.win = null;             // Tempowechsel während der Messung: neu messen
+    if (!M.cadence && M.speed >= 1) {                                  // S5 ab 1× (in der Zeitlupe wären > 5 Ticks/s unmöglich)
+      if (!UI.win) UI.win = { time, tick: M.tick, frames: UI.frames, speed: M.speed };
       else if (time - UI.win.time >= 1000) {
         const ticks = M.tick - UI.win.tick, frames = UI.frames - UI.win.frames;
-        M.cadence = { pass: ticks > 5 && frames > 20, detail: 'erste sichtbare Sekunde bei 1×: ' + ticks + ' Ticks (> 5), ' + frames + ' Frames (> 20)' };
+        M.cadence = { pass: ticks > 5 && frames > 20, detail: 'erste sichtbare Sekunde bei ' + M.speed + '×: ' + ticks + ' Ticks (> 5), ' + frames + ' Frames (> 20)' };
         updateUI(true);                                 // Anzeige auffrischen, dann prüfen (S3 liest die Anzeige)
         if (!UI.userTempo) { M.speed = 0.25; $('sceneNote').textContent = 'Zeitlupe aktiv (Taktprüfung lief 1 s bei 1×). Zelle anklicken, um hineinzusehen.'; syncControls(); }
       }
-    } else if (M.speed !== 1) UI.win = null;
+    } else if (M.speed < 1) UI.win = null;
+    detectSceneEvents(M);
   }
-  renderFrame(M, clamp(UI.acc, 0, 1), UI.vt, UI.selected); UI.frames++;
+  if (UI.scene && !M.paused) { UI.scene.t += dt; if (UI.scene.t >= UI.scene.dur) { UI.scene = null; UI.nextSceneAt = time + 8000; } }   // Szenen laufen in Echtzeit, Pause hält sie an
+  if (!M.paused) pickScene(time);
+  if (UI.scene && M.layers.scenes === false) UI.scene = null;
+  renderFrame(M, clamp(UI.acc, 0, 1), UI.vt, UI.selected); drawScene3D(VIEW.ctx, M, UI.scene); UI.frames++;
   if (time - UI.lastUi > 200) { UI.lastUi = time; updateUI(); }
   requestAnimationFrame(frame);
 }
@@ -203,7 +249,7 @@ function frame(time) {
 // [ui] Start: Bindungen, Legende, Modell, gespeicherte Abnahme, Schleife
 function bootUI() {
   for (const k of Object.keys(DEFAULTS)) bind(k, 'input', () => { UI.M.setParam(k, Number($(k).value)); updateUI(); });
-  for (const k of Object.keys(ACTIONS)) bind(k, ['paths', 'heat', 'flows'].includes(k) ? 'change' : 'click', () => {
+  for (const k of Object.keys(ACTIONS)) bind(k, ['paths', 'heat', 'flows', 'scenes'].includes(k) ? 'change' : 'click', () => {
     ACTIONS[k](UI.M); if (['slow', 'normal', 'speed'].includes(k)) { UI.userTempo = true; UI.win = null; } updateUI();
   });
   bind('reset', 'click', () => { const a = new Uint32Array(1); crypto.getRandomValues(a); mountModel(a[0], { ...UI.M.params, ...(UI.M.stress ? UI.M.stress.restore : {}) }); });
@@ -215,13 +261,18 @@ function bootUI() {
   bind('reports', 'click', () => showReport(UI.reportIdx ?? UI.M.reports.length - 1));
   bind('closeReport', 'click', () => $('report').close());
   bind('acceptance', 'click', runAcceptance);
+  bind('sceneBtn', 'click', playNextScene);
   $('report').addEventListener('cancel', e => e.preventDefault());      // Escape schließt nicht
-  $('world').addEventListener('click', e => { const r = $('world').getBoundingClientRect(); const id = cellAtScreen(UI.M, e.clientX - r.left, e.clientY - r.top); if (id !== null) { UI.selected = id; renderInspector(); } });
+  $('world').addEventListener('click', e => {
+    const r = $('world').getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
+    if (UI.scene) { const s = sceneRect(UI.M); if (px >= s.x && px <= s.x + s.w && py >= s.y && py <= s.y + s.h) { UI.scene = null; UI.nextSceneAt = performance.now() + 8000; return; } }   // Klick schließt die Szene
+    const id = cellAtScreen(UI.M, px, py); if (id !== null) { UI.selected = id; renderInspector(); }
+  });
   const chip = (col, l) => '<span><i style="background:' + col + '"></i>' + l + '</span>';
   $('legend').innerHTML = Object.keys(LABELS).map(k => chip(CELL_COL[k], LABELS[k])).join('')
     + Object.keys(ROLE_COL).map(k => '<span><b style="color:' + ROLE_COL[k] + '">●</b>' + ROLES[k] + '</span>').join('')
     + Object.keys(RES_COL).map(k => '<span><b style="color:' + RES_COL[k] + '">•</b>Last ' + ({ nectar: 'Nektar', pollen: 'Pollen', water: 'Wasser' })[k] + '</span>').join('');
-  $('stages').textContent = 'Stufe 1 Kern, Stufe 2 Aufbau und Stufe 3 Layer/Visuelles vollständig. Weggelassen: nichts. Abweichungen, offen ausgewiesen: Königin implizit, Wasser im Tank statt in Zellen, Amme versorgt Ziel- und Nachbarlarven, Taktprüfung in der ersten Sekunde bei 1× (danach Zeitlupe), Stress-Abnahme mit gestaffeltem Start.';
+  $('stages').textContent = 'Stufe 1 Kern, Stufe 2 Aufbau und Stufe 3 Layer/Visuelles vollständig. Weggelassen: nichts. Abweichungen, offen ausgewiesen: Königin implizit, Wasser im Tank statt in Zellen, Amme versorgt Ziel- und Nachbarlarven, Taktprüfung in der ersten Sekunde bei 1× (danach Zeitlupe), Stress-Abnahme mit gestaffeltem Start. Zusatz: 3D-Vignetten (Heimflug, Schlupf, Regen-Rückzug) im selben Canvas, ausgelöst durch echte Modellereignisse; bei „Bewegung reduzieren“ aus.';
   initRenderer($('world'));
   mountModel(1729, {});
   try { UI.saved = JSON.parse($('savedAcceptance').textContent); } catch { UI.saved = null; }
